@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ArrowRight, Factory, Globe2, MapPin, Network, Ship, Users, Warehouse } from 'lucide-react';
 import { Callout, MaterialityPill, Panel, PanelHead, Pill, Progress, Tabs } from '@/components/ui';
-import { fmt, money } from '@/lib/format';
+import { fmt, money, label, countLabel } from '@/lib/format';
 import type { ViewProps } from './types';
 
 export default function ValueChainView({ workspace, actions }: ViewProps) {
@@ -26,24 +26,24 @@ export default function ValueChainView({ workspace, actions }: ViewProps) {
           <p>Actividades propias, proveedores, distribución y uso del producto. La exposición se evalúa por etapa, ubicación y relación empresarial, no solo por el perímetro legal.</p>
         </div>
         <div className="page-head-actions">
-          <Pill variant="blue">{suppliers.length} proveedores</Pill>
+          <Pill variant="blue">{countLabel(suppliers.length, 'proveedor', 'proveedores')}</Pill>
           <Pill variant="amber">{facilities.length} instalaciones</Pill>
         </div>
       </div>
 
       <div className="grid grid-4">
-        <div className="panel stat-card"><div className="stat-label"><Network size={11} /> IRO upstream</div><div className="stat-value">{upstream.length}</div><div className="stat-foot">{criticalByStage('Upstream')} críticos</div></div>
-        <div className="panel stat-card"><div className="stat-label"><Factory size={11} /> IRO operaciones propias</div><div className="stat-value">{own.length}</div><div className="stat-foot">{criticalByStage('Own operations')} críticos</div></div>
-        <div className="panel stat-card"><div className="stat-label"><Ship size={11} /> IRO downstream</div><div className="stat-value">{downstream.length}</div><div className="stat-foot">{criticalByStage('Downstream')} críticos</div></div>
+        <div className="panel stat-card"><div className="stat-label"><Network size={11} /> IRO aguas arriba</div><div className="stat-value">{upstream.length}</div><div className="stat-foot">{countLabel(criticalByStage('Upstream'), 'crítico', 'críticos')}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><Factory size={11} /> IRO operaciones propias</div><div className="stat-value">{own.length}</div><div className="stat-foot">{countLabel(criticalByStage('Own operations'), 'crítico', 'críticos')}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><Ship size={11} /> IRO aguas abajo</div><div className="stat-value">{downstream.length}</div><div className="stat-foot">{countLabel(criticalByStage('Downstream'), 'crítico', 'críticos')}</div></div>
         <div className="panel stat-card"><div className="stat-label"><Warehouse size={11} /> Trazabilidad media</div><div className="stat-value">{avgTrace}<small>%</small></div><div className="stat-foot">gasto evaluado {money(spend)}</div></div>
       </div>
 
       <div style={{ marginTop: 14 }}>
         <Tabs active={tab} onChange={setTab} items={[
           { key: 'map', label: 'Mapa de cadena' },
-          { key: 'upstream', label: 'Upstream y proveedores', count: suppliers.length },
+          { key: 'upstream', label: 'Aguas arriba y proveedores', count: suppliers.length },
           { key: 'operations', label: 'Operaciones propias', count: facilities.length },
-          { key: 'downstream', label: 'Downstream y uso', count: downstream.length },
+          { key: 'downstream', label: 'Aguas abajo y uso', count: downstream.length },
           { key: 'locations', label: 'Geografía y naturaleza', count: natureLocations.length },
         ]} />
       </div>
@@ -54,13 +54,13 @@ export default function ValueChainView({ workspace, actions }: ViewProps) {
             <div className="section-head"><div><h3>Exposición por etapa de la cadena de valor</h3><p>Intensidad de impacto, exposición financiera y número de IRO por etapa.</p></div><Pill variant="gray">{company.sector}</Pill></div>
             <div className="value-chain">
               {valueChainExposure.map((s, idx) => (
-                <div className="vc-stage" key={s.stage}>
+                <div className="vc-stage" key={label(s.stage)}>
                   <div className="vc-card">
                     <div className="vc-num">0{idx + 1}</div>
-                    <div className="vc-name">{s.stage}</div>
+                    <div className="vc-name">{label(s.stage)}</div>
                     <div className="vc-bar"><i style={{ width: `${Math.min(100, s.impact * 20)}%` }} /></div>
                     <div className="vc-meta"><span>Imp {s.impact.toFixed(1)}</span><span>Fin {s.financial.toFixed(1)}</span></div>
-                    <div className="vc-meta"><span>{s.count} IRO</span></div>
+                    <div className="vc-meta"><span>{countLabel(s.count, 'IRO', 'IRO')}</span></div>
                   </div>
                 </div>
               ))}
@@ -68,8 +68,8 @@ export default function ValueChainView({ workspace, actions }: ViewProps) {
             <div className="divider" />
             <div className="grid grid-3">
               {valueChainExposure.map((s) => (
-                <div key={s.stage} className="mini-card">
-                  <div className="label">{s.stage}</div>
+                <div key={label(s.stage)} className="mini-card">
+                  <div className="label">{label(s.stage)}</div>
                   <div className="value">{s.count}</div>
                   <div className="foot">impacto medio {s.impact.toFixed(1)} · financiero medio {s.financial.toFixed(1)}</div>
                   <div className="row" style={{ marginTop: 6 }}><Pill variant={s.impact >= 3.2 ? 'red' : 'gray'}>Impacto {s.impact >= 3.2 ? 'material' : 'bajo umbral'}</Pill><Pill variant={s.financial >= 3.2 ? 'blue' : 'gray'}>Financiero {s.financial >= 3.2 ? 'material' : 'bajo umbral'}</Pill></div>
@@ -82,7 +82,7 @@ export default function ValueChainView({ workspace, actions }: ViewProps) {
             {highRisk.slice(0, 6).map((s) => (
               <div key={s.id} className="row" style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
                 <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 550 }}>{s.name}</div><div className="micro">{s.country} · {s.sector} · evaluación {s.assessment}%</div></div>
-                <Pill variant={s.risk === 'Critical' ? 'red' : 'amber'}>{s.risk}</Pill>
+                <Pill variant={s.risk === 'Critical' ? 'red' : 'amber'}>{label(s.risk)}</Pill>
               </div>
             ))}
             {highRisk.length === 0 && <div className="table-empty">No hay proveedores de alto riesgo registrados.</div>}
@@ -110,7 +110,7 @@ export default function ValueChainView({ workspace, actions }: ViewProps) {
                       <td><span className="strong">{s.name}</span><div className="sub">{s.audit === 'None' ? 'Sin auditoría' : `Auditoría: ${s.audit}`}</div></td>
                       <td>{s.country}</td>
                       <td>{s.sector}</td>
-                      <td><Pill variant={s.risk === 'Critical' ? 'red' : s.risk === 'High' ? 'amber' : 'gray'}>{s.risk}</Pill></td>
+                      <td><Pill variant={s.risk === 'Critical' ? 'red' : s.risk === 'High' ? 'amber' : 'gray'}>{label(s.risk)}</Pill></td>
                       <td className="num">{money(s.spend)}</td>
                       <td className="num"><span style={{ color: s.assessment < 60 ? 'var(--terracotta)' : 'inherit' }}>{s.assessment}%</span></td>
                       <td style={{ maxWidth: 170 }}><span className="sub">{s.certifications || '—'}</span></td>
@@ -122,14 +122,14 @@ export default function ValueChainView({ workspace, actions }: ViewProps) {
             </div>
           </Panel>
           <Panel className="col-4" pad>
-            <div className="section-head"><div><h3>IRO upstream</h3><p>Impactos y riesgos en la cadena de suministro.</p></div><Network size={15} className="muted" /></div>
+            <div className="section-head"><div><h3>IRO aguas arriba</h3><p>Impactos y riesgos en la cadena de suministro.</p></div><Network size={15} className="muted" /></div>
             {upstream.map((i) => (
               <div key={i.id} className="iro-item" onClick={() => actions.openIRO(i)}>
                 <span className={`iro-mark ${i.materiality}`} />
-                <div className="iro-body"><div className="iro-code">{i.code} · {i.type}</div><div className="iro-title">{i.title}</div><div className="iro-meta"><span>{i.topicName}</span>{i.rights && i.rights !== '—' && <><span className="dot-sep" /><span style={{ color: 'var(--terracotta)' }}>Derechos</span></>}</div></div>
+                <div className="iro-body"><div className="iro-code">{i.code} · {label(i.type)}</div><div className="iro-title">{i.title}</div><div className="iro-meta"><span>{i.topicName}</span>{i.rights && i.rights !== '—' && <><span className="dot-sep" /><span style={{ color: 'var(--terracotta)' }}>Derechos</span></>}</div></div>
               </div>
             ))}
-            {upstream.length === 0 && <div className="table-empty">No hay IRO upstream registrados.</div>}
+            {upstream.length === 0 && <div className="table-empty">No hay IRO de aguas arriba registrados.</div>}
           </Panel>
         </div>
       )}
@@ -146,9 +146,9 @@ export default function ValueChainView({ workspace, actions }: ViewProps) {
                     <tr key={f.id}>
                       <td><span className="strong">{f.name}</span><div className="sub">{f.lat.toFixed(2)}, {f.lng.toFixed(2)}</div></td>
                       <td>{f.country}<div className="sub">{f.region}</div></td>
-                      <td>{f.type}</td>
+                      <td>{label(f.type)}</td>
                       <td className="num">{fmt(f.employees)}</td>
-                      <td><Pill variant={/Extremely|High/i.test(f.waterStress) ? 'red' : /Medium/i.test(f.waterStress) ? 'amber' : 'green'}>{f.waterStress}</Pill></td>
+                      <td><Pill variant={/Extremely|High/i.test(f.waterStress) ? 'red' : /Medium/i.test(f.waterStress) ? 'amber' : 'green'}>{label(f.waterStress)}</Pill></td>
                       <td>{f.protectedArea ? <Pill variant="red">Sí</Pill> : 'No'}</td>
                       <td>{f.certification || '—'}</td>
                     </tr>
@@ -178,24 +178,24 @@ export default function ValueChainView({ workspace, actions }: ViewProps) {
       {tab === 'downstream' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-7" pad>
-            <div className="section-head"><div><h3>Downstream, uso y fin de vida</h3><p>Impactos en distribución, clientes y disposición final.</p></div><Ship size={15} className="muted" /></div>
+            <div className="section-head"><div><h3>Aguas abajo, uso y fin de vida</h3><p>Impactos en distribución, clientes y disposición final.</p></div><Ship size={15} className="muted" /></div>
             {downstream.map((i) => (
               <div key={i.id} className="iro-item" onClick={() => actions.openIRO(i)}>
                 <span className={`iro-mark ${i.materiality}`} />
-                <div className="iro-body"><div className="iro-code">{i.code} · {i.type} · {i.actuality}</div><div className="iro-title">{i.title}</div><div className="iro-meta"><span>{i.topicName}</span><span className="dot-sep" /><span>{i.location}</span><span className="dot-sep" /><span>{i.horizon}</span></div></div>
+                <div className="iro-body"><div className="iro-code">{i.code} · {label(i.type)} · {label(i.actuality)}</div><div className="iro-title">{i.title}</div><div className="iro-meta"><span>{i.topicName}</span><span className="dot-sep" /><span>{i.location}</span><span className="dot-sep" /><span>{label(i.horizon)}</span></div></div>
                 <div className="iro-scores"><span className="badge amber">Imp {i.impactScore.toFixed(1)}</span><span className="badge blue">Fin {i.financialScore.toFixed(1)}</span></div>
               </div>
             ))}
-            {downstream.length === 0 && <div className="table-empty">No hay IRO downstream registrados.</div>}
+            {downstream.length === 0 && <div className="table-empty">No hay IRO de aguas abajo registrados.</div>}
             <div className="divider" />
             <Callout tone="amber"><strong>Uso del producto.</strong> Los impactos en la fase de uso pueden ser mayores que los operativos. Se reportan por separado y no se compensan con reducciones en la operación propia.</Callout>
           </Panel>
           <Panel className="col-5" pad>
-            <div className="section-head"><div><h3>Grupos afectados downstream</h3><p>Clientes, comunidades y usuarios finales.</p></div><Users size={15} className="muted" /></div>
+            <div className="section-head"><div><h3>Grupos afectados en aguas abajo</h3><p>Clientes, comunidades y usuarios finales.</p></div><Users size={15} className="muted" /></div>
             {stakeholders.filter((s) => /customer|cliente|consumer|consumidor|community|comunidad/i.test(s.category)).map((s) => (
               <div key={s.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
                 <div className="row"><div style={{ fontSize: 10.5, fontWeight: 550, flex: 1 }}>{s.name}</div><Pill variant={s.vulnerability >= 4 ? 'red' : 'gray'}>Vulnerabilidad {s.vulnerability}/5</Pill></div>
-                <div className="micro">{s.category} · {s.location}</div>
+                <div className="micro">{label(s.category)} · {s.location}</div>
               </div>
             ))}
             <div className="divider" />
@@ -216,7 +216,7 @@ export default function ValueChainView({ workspace, actions }: ViewProps) {
                 {natureLocations.map((loc) => {
                   const left = Math.max(8, Math.min(92, ((loc.lng + 86) / 70) * 100));
                   const top = Math.max(12, Math.min(88, ((26 - loc.lat) / 58) * 100));
-                  return <div key={loc.id} className={`map-point ${loc.risk === 'High' ? 'high' : loc.risk === 'Low' ? 'low' : ''}`} style={{ left: `${left}%`, top: `${top}%` }} title={`${loc.name} · ${loc.ecosystem} · ${loc.waterStress}`}><span>{loc.name.split(' ')[0]}</span></div>;
+                  return <div key={loc.id} className={`map-point ${loc.risk === 'High' ? 'high' : loc.risk === 'Low' ? 'low' : ''}`} style={{ left: `${left}%`, top: `${top}%` }} title={`${loc.name} · ${loc.ecosystem} · ${label(loc.waterStress)}`}><span>{loc.name.split(' ')[0]}</span></div>;
                 })}
                 <div className="map-caption">Esquema de ubicaciones · no es una capa GIS certificada</div>
                 <div className="map-legend"><span>● Alto</span><span>● Medio</span><span>● Bajo</span></div>
@@ -230,7 +230,7 @@ export default function ValueChainView({ workspace, actions }: ViewProps) {
                 <thead><tr><th>Ubicación</th><th>Ecosistema</th><th>Estrés</th><th>Riesgo</th></tr></thead>
                 <tbody>
                   {natureLocations.map((l) => (
-                    <tr key={l.id}><td><span className="strong">{l.name}</span><div className="sub">{l.country}{l.protected ? ' · área protegida' : ''}</div></td><td>{l.ecosystem}</td><td>{l.waterStress}</td><td><Pill variant={l.risk === 'High' ? 'red' : l.risk === 'Low' ? 'green' : 'amber'}>{l.risk}</Pill></td></tr>
+                    <tr key={l.id}><td><span className="strong">{l.name}</span><div className="sub">{l.country}{l.protected ? ' · área protegida' : ''}</div></td><td>{l.ecosystem}</td><td>{label(l.waterStress)}</td><td><Pill variant={l.risk === 'High' ? 'red' : l.risk === 'Low' ? 'green' : 'amber'}>{label(l.risk)}</Pill></td></tr>
                   ))}
                 </tbody>
               </table>

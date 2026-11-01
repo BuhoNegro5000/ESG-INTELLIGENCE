@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import {
   ArrowLeft, ArrowRight, Check, Compass, FileCheck2, Grid3X3, Leaf, ListFilter,
   ShieldCheck, Sparkles, Users, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ViewKey } from '@/lib/views';
+import { prefersReducedMotion, useFocusTrap } from '@/components/motion';
 
 interface Step {
   image: string;
@@ -166,7 +168,7 @@ export default function Onboarding({ onClose, onNavigate }: { onClose: () => voi
           </div>
 
           <div className="onboarding-progress" aria-hidden>
-            <i style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+            <i style={{ transform: `scaleX(${(step + 1) / STEPS.length})` }} />
           </div>
 
           <div className="onboarding-content" key={step}>
@@ -231,6 +233,173 @@ export default function Onboarding({ onClose, onNavigate }: { onClose: () => voi
               )}
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Guided tour with animated spotlight                                 */
+/* ------------------------------------------------------------------ */
+
+interface TourStep {
+  target: string;
+  title: string;
+  text: string;
+}
+
+const TOUR_STEPS: TourStep[] = [
+  {
+    target: '.sidebar',
+    title: 'Navegación por módulos',
+    text: 'Catorce vistas comparten la misma base de datos: perfil, materialidad, IRO, desempeño, clima, cadena de valor, divulgación y aseguramiento.',
+  },
+  {
+    target: '.company-switcher',
+    title: 'Empresa y periodo activos',
+    text: 'Al cambiar de empresa, los indicadores cuentan desde su valor anterior y muestran el delta. El periodo activo aparece junto al selector.',
+  },
+  {
+    target: '.search-trigger',
+    title: 'Búsqueda global',
+    text: 'Ctrl K abre la paleta de búsqueda sobre las ocho empresas: IRO, grupos de interés, proveedores y divulgaciones.',
+  },
+  {
+    target: '.hero',
+    title: 'Índice de integridad del dato',
+    text: 'El anillo y la barra se dibujan al cargar. La imagen de fondo responde al puntero con un desplazamiento máximo de 6 px.',
+  },
+  {
+    target: '.grid-5',
+    title: 'Cinco indicadores clave',
+    text: 'Cada cifra se cuenta con easing y destella su borde al completarse. El icono de información abre fuente, fecha y responsable del dato.',
+  },
+  {
+    target: '.matrix-wrap',
+    title: 'Matriz de doble materialidad',
+    text: 'Pasa el cursor para aislar una burbuja con sus líneas guía; haz clic para abrir el detalle y resaltar el IRO vinculado.',
+  },
+  {
+    target: '.iro-item',
+    title: 'Inteligencia de IRO',
+    text: 'Las filas se elevan al pasar el cursor y muestran una línea dorada. El detalle se abre en un panel lateral con foco atrapado y cierre con Esc.',
+  },
+];
+
+export function GuidedTour({ onClose, onNavigate, currentView }: {
+  onClose: () => void; onNavigate: (view: ViewKey) => void; currentView: ViewKey;
+}) {
+  const [index, setIndex] = useState(0);
+  const [rect, setRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const cardRef = useFocusTrap<HTMLDivElement>(true, onClose);
+  const step = TOUR_STEPS[index];
+
+  useEffect(() => {
+    if (currentView !== 'overview') onNavigate('overview');
+    // Only on mount: the tour targets the overview layout.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer = 0;
+    let tries = 0;
+    const measure = () => {
+      if (cancelled) return;
+      const el = document.querySelector<HTMLElement>(step.target);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        setRect({ x: r.left, y: r.top, w: r.width, h: r.height });
+        el.scrollIntoView({ block: 'center', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+        timer = window.setTimeout(() => {
+          if (cancelled) return;
+          const next = el.getBoundingClientRect();
+          setRect({ x: next.left, y: next.top, w: next.width, h: next.height });
+        }, 380);
+      } else if (tries++ < 25) {
+        timer = window.setTimeout(measure, 90);
+      } else {
+        setRect(null);
+      }
+    };
+    measure();
+    const onResize = () => measure();
+    window.addEventListener('resize', onResize);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [index, step.target]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowRight') setIndex((i) => Math.min(TOUR_STEPS.length - 1, i + 1));
+      if (event.key === 'ArrowLeft') setIndex((i) => Math.max(0, i - 1));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const viewportW = typeof window === 'undefined' ? 1200 : window.innerWidth;
+  const viewportH = typeof window === 'undefined' ? 800 : window.innerHeight;
+  const cardW = Math.min(360, viewportW - 28);
+  const cardH = 206;
+  const spot = rect ? { x: rect.x - 8, y: rect.y - 8, w: rect.w + 16, h: rect.h + 16 } : null;
+
+  let cardX = rect ? rect.x + rect.w / 2 - cardW / 2 : (viewportW - cardW) / 2;
+  let cardY = rect ? rect.y + rect.h + 14 : (viewportH - cardH) / 2;
+  if (rect && cardY + cardH > viewportH - 14) cardY = Math.max(14, rect.y - cardH - 14);
+  cardX = Math.max(14, Math.min(viewportW - cardW - 14, cardX));
+  cardY = Math.max(14, Math.min(viewportH - cardH - 14, cardY));
+
+  return (
+    <div className="tour" role="dialog" aria-modal="true" aria-label="Tour guiado por la interfaz">
+      <div
+        className="tour-spot"
+        aria-hidden
+        style={{
+          width: spot?.w ?? 0,
+          height: spot?.h ?? 0,
+          opacity: spot ? 1 : 0,
+          '--spot-x': `${spot?.x ?? 0}px`,
+          '--spot-y': `${spot?.y ?? 0}px`,
+        } as CSSProperties}
+      />
+      <div
+        className="tour-card"
+        ref={cardRef}
+        tabIndex={-1}
+        style={{
+          '--card-x': `${cardX}px`,
+          '--card-y': `${cardY}px`,
+        } as CSSProperties}
+      >
+        <div className="eyebrow">Tour guiado · Paso {index + 1} de {TOUR_STEPS.length}</div>
+        <h4>{step.title}</h4>
+        <p>{step.text}</p>
+        <div className="tour-progress" aria-hidden><i style={{ transform: `scaleX(${(index + 1) / TOUR_STEPS.length})` }} /></div>
+        <div className="tour-actions">
+          <button className="btn sm ghost" onClick={onClose}>Saltar</button>
+          <button
+            className="btn sm"
+            onClick={() => setIndex((i) => Math.max(0, i - 1))}
+            disabled={index === 0}
+            aria-label="Paso anterior"
+          >
+            <ArrowLeft size={12} />
+          </button>
+          {index < TOUR_STEPS.length - 1 ? (
+            <button className="btn sm primary" onClick={() => setIndex((i) => Math.min(TOUR_STEPS.length - 1, i + 1))}>
+              Siguiente <ArrowRight size={12} />
+            </button>
+          ) : (
+            <button className="btn sm primary" onClick={onClose}>
+              <Check size={12} /> Terminar
+            </button>
+          )}
+          <span className="tour-count">{index + 1}/{TOUR_STEPS.length}</span>
         </div>
       </div>
     </div>

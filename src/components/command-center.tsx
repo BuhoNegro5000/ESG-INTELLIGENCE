@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { clsx } from 'clsx';
 import {
   Activity, AlertTriangle, ArrowRight, BadgeCheck, Bell, Building2, Check, ChevronDown, ChevronLeft,
@@ -14,9 +15,10 @@ import type {
   Assessment, Company, Disclosure, Evidence, FrameworkCoverage, IRO, KPI,
   MaterialityTopic, Portfolio, SearchResult, Target, Workspace,
 } from '@/lib/types';
-import { dateLabel, fmt, initials, materialityLabel } from '@/lib/format';
+import { countLabel, dateLabel, fmt, initials, label, materialityLabel } from '@/lib/format';
 import { materialityFrom } from '@/lib/materiality-rules';
 import { Panel, Pill } from '@/components/ui';
+import { prefersReducedMotion, useFocusTrap, usePresence } from '@/components/motion';
 import type { AppActions } from '@/components/views/types';
 import OverviewView from '@/components/views/overview';
 import ProfileView from '@/components/views/profile';
@@ -32,7 +34,7 @@ import ReportingView from '@/components/views/reporting';
 import AssuranceView from '@/components/views/assurance';
 import AIView from '@/components/views/ai';
 import AdminView from '@/components/views/admin';
-import Onboarding from '@/components/onboarding';
+import Onboarding, { GuidedTour } from '@/components/onboarding';
 
 const ICONS: Record<string, LucideIcon> = {
   LayoutDashboard, Building2, Grid3X3, ListFilter, Activity, Leaf, Users, Scale, ShieldAlert,
@@ -71,7 +73,16 @@ export default function CommandCenter({ initialPortfolio, initialWorkspace }: Pr
   const [createOpen, setCreateOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [loadingWorkspace, setLoadingWorkspace] = useState(false);
+  const skeletonMounted = usePresence(loadingWorkspace, 200);
   const [toast, setToast] = useState<{ id: number; message: string } | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [bellPulse, setBellPulse] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const [navY, setNavY] = useState(0);
+  const [navReady, setNavReady] = useState(false);
+  const navScrollRef = useRef<HTMLDivElement>(null);
+  const leavingRef = useRef(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const notify = useCallback((message: string) => {
@@ -131,12 +142,28 @@ export default function CommandCenter({ initialPortfolio, initialWorkspace }: Pr
   }, []);
 
   const navigate = useCallback((next: ViewKey) => {
-    setView(next);
     setMobileOpen(false);
+    setNotifOpen(false);
     const target = `#${next}`;
     if (window.location.hash !== target) window.history.pushState(null, '', target);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+    if (next === view || leavingRef.current) {
+      window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+      return;
+    }
+    if (prefersReducedMotion()) {
+      setView(next);
+      window.scrollTo({ top: 0, behavior: 'auto' });
+      return;
+    }
+    leavingRef.current = true;
+    setLeaving(true);
+    window.setTimeout(() => {
+      setView(next);
+      setLeaving(false);
+      leavingRef.current = false;
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }, 120);
+  }, [view]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -149,11 +176,41 @@ export default function CommandCenter({ initialPortfolio, initialWorkspace }: Pr
         setSelectedIro(null);
         setCreateOpen(false);
         setReportOpen(false);
+        setNotifOpen(false);
+        setTourOpen(false);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // The gold indicator glides between navigation items (transform only).
+  useEffect(() => {
+    const measure = () => {
+      const container = navScrollRef.current;
+      if (!container) return;
+      const active = container.querySelector<HTMLElement>('.nav-item.active');
+      if (!active) return;
+      const cRect = container.getBoundingClientRect();
+      const aRect = active.getBoundingClientRect();
+      setNavY(aRect.top - cRect.top + container.scrollTop + (aRect.height - 34) / 2);
+      setNavReady(true);
+    };
+    measure();
+    const timer = window.setTimeout(measure, 80);
+    window.addEventListener('resize', measure);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('resize', measure);
+    };
+  }, [view, collapsed]);
+
+  // A new workspace means new alerts: sway the bell once.
+  useEffect(() => {
+    setBellPulse(true);
+    const timer = window.setTimeout(() => setBellPulse(false), 1300);
+    return () => window.clearTimeout(timer);
+  }, [workspace.company.id]);
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/workspace/${workspace.company.id}`, { cache: 'no-store' });
@@ -244,6 +301,17 @@ export default function CommandCenter({ initialPortfolio, initialWorkspace }: Pr
 
   const criticalCount = workspace.iros.filter((i) => i.critical).length;
   const gapCount = workspace.disclosures.filter((d) => d.status === 'Gap' || d.status === 'Not started').length;
+  const alerts = [
+    ...workspace.iros.filter((i) => i.critical).slice(0, 3).map((i) => ({
+      id: `iro-${i.id}`, title: `IRO ${i.code} · ${label(i.type)}`, text: i.title, view: 'iros' as ViewKey,
+    })),
+    ...workspace.findings.filter((f) => f.severity === 'Critical' || f.severity === 'High').slice(0, 2).map((f) => ({
+      id: `finding-${f.id}`, title: `Hallazgo ${f.code} · ${label(f.severity)}`, text: f.title, view: 'assurance' as ViewKey,
+    })),
+    ...workspace.disclosures.filter((d) => d.status === 'Gap').slice(0, 2).map((d) => ({
+      id: `disclosure-${d.id}`, title: `Brecha · ${d.framework}`, text: d.title, view: 'reporting' as ViewKey,
+    })),
+  ].slice(0, 6);
 
   return (
     <div className={clsx('app-shell', collapsed && 'collapsed')}>
@@ -265,7 +333,8 @@ export default function CommandCenter({ initialPortfolio, initialWorkspace }: Pr
           </button>
         </div>
 
-        <div className="sidebar-scroll">
+        <div className="sidebar-scroll" ref={navScrollRef}>
+          {navReady && <span className="nav-indicator" aria-hidden style={{ '--nav-y': `${navY}px` } as CSSProperties} />}
           {NAV_GROUPS.map((group) => (
             <div className="nav-section" key={group.title}>
               <div className="nav-section-title">{group.title}</div>
@@ -293,7 +362,7 @@ export default function CommandCenter({ initialPortfolio, initialWorkspace }: Pr
           <div className="avatar">{initials('Ricardo Mendoza')}</div>
           <div className="sidebar-foot-copy">
             <div className="sidebar-foot-name">Ricardo Mendoza</div>
-            <div className="sidebar-foot-role">{role}</div>
+            <div className="sidebar-foot-role">{label(role)}</div>
           </div>
         </div>
       </aside>
@@ -302,12 +371,13 @@ export default function CommandCenter({ initialPortfolio, initialWorkspace }: Pr
         <header className="topbar">
           <div className="topbar-left">
             <button className="icon-btn mobile-menu" onClick={() => setMobileOpen((o) => !o)} aria-label="Abrir navegación"><Menu size={16} /></button>
-            <div className="company-switcher">
+            <div className={clsx('company-switcher', loadingWorkspace && 'is-loading')}>
               <div className="company-monogram">{workspace.company.shortName.slice(0, 2).toUpperCase()}</div>
               <select value={workspace.company.id} onChange={(e) => void selectCompany(e.target.value)} aria-label="Seleccionar empresa">
                 {portfolio.companies.map((c) => <option key={c.id} value={c.id}>{c.shortName}</option>)}
               </select>
               <ChevronDown size={13} className="chev" />
+              {loadingWorkspace && <span className="skeleton switcher-skeleton" aria-hidden />}
             </div>
             <div className="topbar-context">
               <span className="context-dot" />
@@ -332,14 +402,21 @@ export default function CommandCenter({ initialPortfolio, initialWorkspace }: Pr
             <button className="icon-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} title="Cambiar tema">
               {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
             </button>
-            <button className="icon-btn" onClick={() => navigate('assurance')} title="Hallazgos y aseguramiento">
+            <button
+              className={clsx('icon-btn', bellPulse && 'bell-sway')}
+              onClick={() => setNotifOpen((o) => !o)}
+              title="Alertas de gestión"
+              aria-label={`Notificaciones: ${alerts.length} alertas`}
+              aria-haspopup="dialog"
+              aria-expanded={notifOpen}
+            >
               <Bell size={15} />
-              {criticalCount > 0 && <span className="notification-dot" />}
+              {alerts.length > 0 && <span className="notification-dot" />}
             </button>
             <label className="role-pill">
               <ShieldCheck size={13} />
               <select value={role} onChange={(e) => setRole(e.target.value)} aria-label="Rol activo">
-                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                {ROLES.map((r) => <option key={r} value={r}>{label(r)}</option>)}
               </select>
             </label>
             <div className="avatar" style={{ width: 34, height: 34 }}>{initials('Ricardo Mendoza')}</div>
@@ -347,25 +424,24 @@ export default function CommandCenter({ initialPortfolio, initialWorkspace }: Pr
         </header>
 
         <main className="content">
-          {loadingWorkspace ? (
-            <div className="stack" style={{ gap: 14 }}>
-              <div className="skeleton" style={{ height: 160, borderRadius: 20 }} />
-              <div className="grid grid-4">
-                {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ height: 108 }} />)}
+          <div className="row" style={{ marginBottom: 12, gap: 8 }}>
+            <span className="micro">{VIEW_META[view].subtitle}</span>
+            <span className="dot-sep" />
+            <span className="micro">{workspace.company.name} · {workspace.company.sector}</span>
+            <span className="spacer" />
+            <Pill variant="gray" dot={false}>Evaluación {workspace.assessment?.progress ?? 0}%</Pill>
+          </div>
+          <div key={view} className={clsx('view-enter', leaving && 'view-exit')}>{renderView()}</div>
+          {skeletonMounted && (
+            <div className={clsx('workspace-skeleton', !loadingWorkspace && 'is-leaving')} aria-busy={loadingWorkspace} aria-hidden={!loadingWorkspace}>
+              <div className="stack" style={{ gap: 14 }}>
+                <div className="skeleton" style={{ height: 160, borderRadius: 20 }} />
+                <div className="grid grid-4">
+                  {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ height: 108 }} />)}
+                </div>
+                <div className="skeleton" style={{ height: 320 }} />
               </div>
-              <div className="skeleton" style={{ height: 320 }} />
             </div>
-          ) : (
-            <>
-              <div className="row" style={{ marginBottom: 12, gap: 8 }}>
-                <span className="micro">{VIEW_META[view].subtitle}</span>
-                <span className="dot-sep" />
-                <span className="micro">{workspace.company.name} · {workspace.company.sector}</span>
-                <span className="spacer" />
-                <Pill variant="gray" dot={false}>Evaluación {workspace.assessment?.progress ?? 0}%</Pill>
-              </div>
-              <div key={view} className="view-enter">{renderView()}</div>
-            </>
           )}
         </main>
       </div>
@@ -378,7 +454,29 @@ export default function CommandCenter({ initialPortfolio, initialWorkspace }: Pr
       {createOpen && <CreateIROModal workspace={workspace} onClose={() => setCreateOpen(false)} onCreated={(iro) => { setCreateOpen(false); void refresh(); setSelectedIro(iro); notify(`IRO ${iro.code} creado en estado Draft.`); }} notify={notify} />}
       {reportOpen && <ReportModal companyId={workspace.company.id} onClose={() => setReportOpen(false)} notify={notify} />}
 
-      <button className="help-fab" onClick={() => setOnboardingOpen(true)} aria-label="Abrir guía de uso" aria-haspopup="dialog">
+      {notifOpen && (
+        <div className="notif-panel" role="dialog" aria-label="Alertas de gestión">
+          <div className="notif-head">
+            <Bell size={14} /> Alertas de gestión
+            <span className="micro" style={{ marginLeft: 'auto' }}>{countLabel(alerts.length, 'alerta', 'alertas')}</span>
+          </div>
+          {alerts.length === 0 && <div className="search-empty">No hay alertas abiertas en este espacio de trabajo.</div>}
+          {alerts.map((alert) => (
+            <button key={alert.id} type="button" className="notif-item" onClick={() => navigate(alert.view)}>
+              <span className="notif-dot" aria-hidden />
+              <span className="notif-body">
+                <strong>{alert.title}</strong>
+                <span>{alert.text}</span>
+              </span>
+              <ArrowRight size={13} style={{ marginLeft: 'auto', flex: '0 0 13px', color: 'var(--muted)' }} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tourOpen && <GuidedTour onClose={() => setTourOpen(false)} onNavigate={navigate} currentView={view} />}
+
+      <button className="help-fab" onClick={() => setTourOpen(true)} aria-label="Iniciar tour guiado por la interfaz" aria-haspopup="dialog">
         <Compass size={15} />
         <span>Guía de uso</span>
       </button>
@@ -438,7 +536,7 @@ function SearchModal({ companyCount, onClose, onPick }: { companyCount: number; 
 
   return (
     <div className="search-overlay" onClick={onClose}>
-      <div className="search-panel" onClick={(e) => e.stopPropagation()}>
+      <div className="search-panel" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Buscar en el portafolio">
         <div className="search-input-row">
           <Search size={16} className="muted" />
           <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar empresa, IRO, grupo de interés, proveedor o divulgación…" />
@@ -452,10 +550,10 @@ function SearchModal({ companyCount, onClose, onPick }: { companyCount: number; 
             </div>
           )}
           {q.trim() && !loading && results.length === 0 && <div className="search-empty">Sin resultados para “{q}”.</div>}
-          {results.map((r) => {
+          {results.map((r, index) => {
             const Icon = iconFor(r.type);
             return (
-              <div key={`${r.type}-${r.id}-${r.companyId}`} className="search-result" onClick={() => onPick(r)}>
+              <div key={`${label(r.type)}-${r.id}-${r.companyId}`} className="search-result" style={{ '--i': index } as CSSProperties} onClick={() => onPick(r)}>
                 <div className="search-result-icon"><Icon size={13} /></div>
                 <div style={{ minWidth: 0 }}>
                   <div className="search-result-title">{r.title}</div>
@@ -482,6 +580,7 @@ function IRODrawer({ iro, onClose, onSaved, notify }: { iro: IRO; onClose: () =>
   const [owner, setOwner] = useState(iro.owner);
   const [saving, setSaving] = useState(false);
   const materiality = materialityFrom(impact, financial);
+  const drawerRef = useFocusTrap<HTMLElement>(true, onClose);
 
   async function save() {
     setSaving(true);
@@ -504,12 +603,12 @@ function IRODrawer({ iro, onClose, onSaved, notify }: { iro: IRO; onClose: () =>
   return (
     <>
       <div className="overlay" onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-modal="true" aria-label={`IRO ${iro.code}`}>
+      <aside className="drawer" ref={drawerRef} role="dialog" aria-modal="true" aria-label={`IRO ${iro.code}`} tabIndex={-1}>
         <div className="drawer-head">
           <div style={{ flex: 1 }}>
             <div className="row" style={{ gap: 6 }}>
               <span className="mono">{iro.code}</span>
-              <Pill variant={iro.type === 'Impact' ? 'red' : iro.type === 'Risk' ? 'amber' : 'green'}>{iro.type}</Pill>
+              <Pill variant={iro.type === 'Impact' ? 'red' : iro.type === 'Risk' ? 'amber' : 'green'}>{label(iro.type)}</Pill>
               {iro.critical ? <Pill variant="red">Crítico</Pill> : null}
             </div>
             <h3 style={{ marginTop: 7, fontSize: 16, lineHeight: 1.3 }}>{iro.title}</h3>
@@ -547,7 +646,7 @@ function IRODrawer({ iro, onClose, onSaved, notify }: { iro: IRO; onClose: () =>
             <div className="field">
               <label>Estado</label>
               <select className="select" value={status} onChange={(e) => setStatus(e.target.value)}>
-                {['Draft', 'In review', 'Approved', 'Rejected'].map((s) => <option key={s} value={s}>{s}</option>)}
+                {['Draft', 'In review', 'Approved', 'Rejected'].map((s) => <option key={s} value={s}>{label(s)}</option>)}
               </select>
             </div>
             <div className="field">
@@ -568,12 +667,12 @@ function IRODrawer({ iro, onClose, onSaved, notify }: { iro: IRO; onClose: () =>
           <div className="divider" />
           <dl className="info-list">
             <div className="info-row"><dt>Asunto</dt><dd>{iro.topicName} ({iro.topicCode})</dd></div>
-            <div className="info-row"><dt>Naturaleza</dt><dd>{iro.nature || '—'} · {iro.actuality || '—'}</dd></div>
-            <div className="info-row"><dt>Etapa de cadena</dt><dd>{iro.stage || '—'}</dd></div>
+            <div className="info-row"><dt>Naturaleza</dt><dd>{label(iro.nature)} · {label(iro.actuality)}</dd></div>
+            <div className="info-row"><dt>Etapa de cadena</dt><dd>{label(iro.stage)}</dd></div>
             <div className="info-row"><dt>Ubicación</dt><dd>{iro.location || '—'}</dd></div>
             <div className="info-row"><dt>Grupo de interés</dt><dd>{iro.stakeholder || '—'}</dd></div>
             <div className="info-row"><dt>Derechos humanos</dt><dd>{iro.rights || 'No aplica'}</dd></div>
-            <div className="info-row"><dt>Horizonte</dt><dd>{iro.horizon || '—'}</dd></div>
+            <div className="info-row"><dt>Horizonte</dt><dd>{label(iro.horizon)}</dd></div>
             <div className="info-row"><dt>Efecto financiero</dt><dd>{iro.financialEffect || '—'}</dd></div>
             <div className="info-row"><dt>Controles</dt><dd>{iro.controls || '—'}</dd></div>
             <div className="info-row"><dt>Inherente / residual</dt><dd>{iro.inherent ?? '—'} / {iro.residual ?? '—'}</dd></div>
@@ -664,7 +763,7 @@ function CreateIROModal({ workspace, onClose, onCreated, notify }: { workspace: 
             </div>
             <div className="field">
               <label>Tipo</label>
-              <select className="select" value={form.type} onChange={(e) => set('type', e.target.value)}>
+              <select className="select" value={label(form.type)} onChange={(e) => set('type', e.target.value)}>
                 <option value="Impact">Impacto</option>
                 <option value="Risk">Riesgo</option>
                 <option value="Opportunity">Oportunidad</option>
@@ -672,24 +771,24 @@ function CreateIROModal({ workspace, onClose, onCreated, notify }: { workspace: 
             </div>
             <div className="field">
               <label>Naturaleza</label>
-              <select className="select" value={form.nature} onChange={(e) => set('nature', e.target.value)}>
+              <select className="select" value={label(form.nature)} onChange={(e) => set('nature', e.target.value)}>
                 <option value="Negative">Negativa</option>
                 <option value="Positive">Positiva</option>
               </select>
             </div>
             <div className="field">
               <label>Actualidad</label>
-              <select className="select" value={form.actuality} onChange={(e) => set('actuality', e.target.value)}>
+              <select className="select" value={label(form.actuality)} onChange={(e) => set('actuality', e.target.value)}>
                 <option value="Actual">Actual</option>
                 <option value="Potential">Potencial</option>
               </select>
             </div>
             <div className="field">
               <label>Etapa de cadena</label>
-              <select className="select" value={form.stage} onChange={(e) => set('stage', e.target.value)}>
-                <option value="Upstream">Upstream</option>
+              <select className="select" value={label(form.stage)} onChange={(e) => set('stage', e.target.value)}>
+                <option value="Upstream">Aguas arriba</option>
                 <option value="Own operations">Operaciones propias</option>
-                <option value="Downstream">Downstream</option>
+                <option value="Downstream">Aguas abajo</option>
               </select>
             </div>
             <div className="field">
@@ -804,7 +903,7 @@ function ReportModal({ companyId, onClose, notify }: { companyId: string; onClos
                     <thead><tr><th>Asunto</th><th>Dimensión</th><th className="num">Impacto</th><th className="num">Financiero</th><th>Clasificación</th></tr></thead>
                     <tbody>
                       {data.materialTopics.map((t) => (
-                        <tr key={t.code}><td>{t.name}</td><td>{t.dimension}</td><td className="num">{t.impact.toFixed(1)}</td><td className="num">{t.financial.toFixed(1)}</td><td><Pill variant={t.materiality === 'both' ? 'amber' : t.materiality === 'impact' ? 'red' : 'blue'}>{materialityLabel(t.materiality)}</Pill></td></tr>
+                        <tr key={t.code}><td>{t.name}</td><td>{label(t.dimension)}</td><td className="num">{t.impact.toFixed(1)}</td><td className="num">{t.financial.toFixed(1)}</td><td><Pill variant={t.materiality === 'both' ? 'amber' : t.materiality === 'impact' ? 'red' : 'blue'}>{materialityLabel(t.materiality)}</Pill></td></tr>
                       ))}
                     </tbody>
                   </table>
@@ -818,7 +917,7 @@ function ReportModal({ companyId, onClose, notify }: { companyId: string; onClos
                 <div className="stack" style={{ gap: 8, marginTop: 6 }}>
                   {data.criticalIros.map((i) => (
                     <div key={i.id} className="mini-card">
-                      <div className="row"><span className="mono">{i.code}</span><Pill variant={i.type === 'Impact' ? 'red' : i.type === 'Risk' ? 'amber' : 'green'}>{i.type}</Pill><span className="micro" style={{ marginLeft: 'auto' }}>Imp {i.impactScore.toFixed(1)} · Fin {i.financialScore.toFixed(1)}</span></div>
+                      <div className="row"><span className="mono">{i.code}</span><Pill variant={i.type === 'Impact' ? 'red' : i.type === 'Risk' ? 'amber' : 'green'}>{label(i.type)}</Pill><span className="micro" style={{ marginLeft: 'auto' }}>Imp {i.impactScore.toFixed(1)} · Fin {i.financialScore.toFixed(1)}</span></div>
                       <div style={{ fontSize: 11, fontWeight: 550, marginTop: 4 }}>{i.title}</div>
                       <div className="micro" style={{ marginTop: 3 }}>{i.description}</div>
                     </div>

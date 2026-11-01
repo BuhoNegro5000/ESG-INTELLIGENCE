@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Building2, ChevronRight, Factory, Globe2, Landmark, Network, ShieldCheck, Users } from 'lucide-react';
 import { Callout, MaterialityPill, Panel, PanelHead, Pill, ProgressRow, Tabs } from '@/components/ui';
-import { dateLabel, fmt, money } from '@/lib/format';
+import { dateLabel, fmt, isPublicWebsite, money, label, countLabel } from '@/lib/format';
 import type { ViewProps } from './types';
 
 export default function ProfileView({ workspace, actions }: ViewProps) {
@@ -37,8 +37,8 @@ export default function ProfileView({ workspace, actions }: ViewProps) {
               <div className="row wrap" style={{ marginTop: 8 }}>
                 <Pill variant="gray">{company.country} · {company.city}</Pill>
                 <Pill variant="gray">Fundada en {company.founded}</Pill>
-                <Pill variant="gray">{company.maturity}</Pill>
-                <Pill variant="blue">{company.assuranceStatus}</Pill>
+                <Pill variant="gray">{label(company.maturity)}</Pill>
+                <Pill variant="blue">{label(company.assuranceStatus)}</Pill>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -90,15 +90,15 @@ export default function ProfileView({ workspace, actions }: ViewProps) {
               <div className="section-head"><div><h3>Estructura de propiedad y control</h3><p>Representación del perímetro registrado en la plataforma.</p></div></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div className="mini-card" style={{ borderColor: 'rgba(201,155,81,.3)' }}>
-                  <div className="row"><Landmark size={14} className="text-g" /><div><div className="label">Organización propietaria</div><div style={{ fontSize: 12, fontWeight: 600 }}>{workspace.organization?.name}</div></div><Pill variant="amber" className="ml-auto">Portfolio</Pill></div>
+                  <div className="row"><Landmark size={14} className="text-g" /><div><div className="label">Organización propietaria</div><div style={{ fontSize: 12, fontWeight: 600 }}>{workspace.organization?.name}</div></div><Pill variant="amber" className="ml-auto">Portafolio</Pill></div>
                 </div>
                 <div style={{ paddingLeft: 20, borderLeft: '1px solid var(--line-strong)', marginLeft: 18, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div className="mini-card">
-                    <div className="row"><Building2 size={14} /><div><div className="label">Entidad legal evaluada</div><div style={{ fontSize: 12, fontWeight: 600 }}>{company.name}</div><div className="micro">{company.country} · {company.website}</div></div><Pill variant="green" className="ml-auto">100%</Pill></div>
+                    <div className="row"><Building2 size={14} /><div><div className="label">Entidad legal evaluada</div><div style={{ fontSize: 12, fontWeight: 600 }}>{company.name}</div><div className="micro">{company.country}{isPublicWebsite(company.website) ? ` · ${company.website}` : ''}</div></div><Pill variant="green" className="ml-auto">100%</Pill></div>
                   </div>
                   {facilities.map((f) => (
                     <div key={f.id} className="mini-card" style={{ marginLeft: 12 }}>
-                      <div className="row"><Factory size={13} className="muted" /><div><div className="label">{f.type}</div><div style={{ fontSize: 11, fontWeight: 550 }}>{f.name}</div><div className="micro">{f.region}, {f.country} · {fmt(f.employees)} personas · {f.certification}</div></div><Pill variant={f.waterStress.includes('Extremely') ? 'red' : 'gray'} className="ml-auto">{f.waterStress}</Pill></div>
+                      <div className="row"><Factory size={13} className="muted" /><div><div className="label">{label(f.type)}</div><div style={{ fontSize: 11, fontWeight: 550 }}>{f.name}</div><div className="micro">{f.region}, {f.country} · {fmt(f.employees)} personas · {f.certification}</div></div><Pill variant={f.waterStress.includes('Extremely') ? 'red' : 'gray'} className="ml-auto">{label(f.waterStress)}</Pill></div>
                     </div>
                   ))}
                 </div>
@@ -146,7 +146,7 @@ export default function ProfileView({ workspace, actions }: ViewProps) {
                 {topMaterial.map((t) => (
                   <div key={t.code} className="row" style={{ alignItems: 'flex-start' }}>
                     <span className={`iro-mark ${t.materiality}`} style={{ height: 26 }} />
-                    <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 550 }}>{t.name}</div><div className="micro">{t.esrs} · {t.count} IRO</div></div>
+                    <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 550 }}>{t.name}</div><div className="micro">{t.esrs} · {countLabel(t.count, 'IRO', 'IRO')}</div></div>
                     <MaterialityPill value={t.materiality} />
                   </div>
                 ))}
@@ -157,17 +157,17 @@ export default function ProfileView({ workspace, actions }: ViewProps) {
 
         {tab === 'valuechain' && (
           <Panel className="col-12" pad>
-            <div className="section-head"><div><h3>Cadena de valor registrada</h3><p>Actividades propias, upstream y downstream con exposición ESG.</p></div><div className="section-head-actions"><button className="btn sm" onClick={() => actions.navigate('valuechain')}>Abrir mapa completo <ChevronRight size={12} /></button></div></div>
+            <div className="section-head"><div><h3>Cadena de valor registrada</h3><p>Actividades propias, aguas arriba y aguas abajo con exposición ESG.</p></div><div className="section-head-actions"><button className="btn sm" onClick={() => actions.navigate('valuechain')}>Abrir mapa completo <ChevronRight size={12} /></button></div></div>
             <div className="value-chain">
               {workspace.valueChainExposure.map((s, idx) => (
-                <div className="vc-stage" key={s.stage}>
-                  <div className="vc-card"><div className="vc-num">0{idx + 1}</div><div className="vc-name">{s.stage}</div><div className="vc-bar"><i style={{ width: `${s.impact * 20}%` }} /></div><div className="vc-meta"><span>Imp {s.impact}</span><span>Fin {s.financial}</span></div><div className="vc-meta"><span>{s.count} IRO</span></div></div>
+                <div className="vc-stage" key={label(s.stage)}>
+                  <div className="vc-card"><div className="vc-num">0{idx + 1}</div><div className="vc-name">{label(s.stage)}</div><div className="vc-bar"><i style={{ width: `${s.impact * 20}%` }} /></div><div className="vc-meta"><span>Imp {s.impact}</span><span>Fin {s.financial}</span></div><div className="vc-meta"><span>{s.count} IRO</span></div></div>
                 </div>
               ))}
             </div>
             <div className="grid grid-3" style={{ marginTop: 12 }}>
               {workspace.iros.filter((i) => i.stage === 'Upstream').slice(0, 3).map((i) => (
-                <div key={i.id} className="mini-card" style={{ cursor: 'pointer' }} onClick={() => actions.openIRO(i)}><div className="label">{i.code} · Upstream</div><div style={{ fontSize: 11, fontWeight: 550, marginTop: 4 }}>{i.title}</div><div className="micro" style={{ marginTop: 4 }}>{i.topicName} · {i.location}</div></div>
+                <div key={i.id} className="mini-card" style={{ cursor: 'pointer' }} onClick={() => actions.openIRO(i)}><div className="label">{i.code} · {label(i.stage)}</div><div style={{ fontSize: 11, fontWeight: 550, marginTop: 4 }}>{i.title}</div><div className="micro" style={{ marginTop: 4 }}>{i.topicName} · {i.location}</div></div>
               ))}
             </div>
           </Panel>
@@ -191,7 +191,7 @@ export default function ProfileView({ workspace, actions }: ViewProps) {
               {policies.map((p) => (
                 <div key={p.id} className="row" style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
                   <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 550 }}>{p.title}</div><div className="micro">{p.code} · v{p.version} · {p.owner}</div></div>
-                  <Pill variant={p.status === 'Active' ? 'green' : p.status.includes('overdue') ? 'red' : 'amber'}>{p.status}</Pill>
+                  <Pill variant={p.status === 'Active' ? 'green' : p.status.includes('overdue') ? 'red' : 'amber'}>{label(p.status)}</Pill>
                 </div>
               ))}
             </Panel>
@@ -208,8 +208,8 @@ export default function ProfileView({ workspace, actions }: ViewProps) {
                   {stakeholders.map((s) => (
                     <tr key={s.id}>
                       <td><span className="strong">{s.name}</span><div className="sub">{s.location}</div></td>
-                      <td><Pill variant="gray">{s.category}</Pill></td>
-                      <td>{s.relation}</td>
+                      <td><Pill variant="gray">{label(s.category)}</Pill></td>
+                      <td>{label(s.relation)}</td>
                       <td className="num">{s.influence}/5</td>
                       <td className="num">{s.exposure}/5</td>
                       <td className="num"><span style={{ color: s.vulnerability >= 4 ? 'var(--terracotta)' : 'inherit' }}>{s.vulnerability}/5</span></td>

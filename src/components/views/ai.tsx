@@ -1,5 +1,7 @@
 'use client';
 
+import { label } from '@/lib/format';
+
 import { useRef, useState } from 'react';
 import {
   BrainCircuit, FileSearch, Leaf, Send, ShieldCheck, Sparkles, Users, Waves,
@@ -123,7 +125,7 @@ export default function AIView({ workspace, actions }: ViewProps) {
           </div>
           <div className="ai-messages">
             {messages.map((m, idx) => (
-              <div key={idx} className={`ai-msg ${m.role}`}>
+              <div key={idx} className={`ai-msg ${label(m.role)}`}>
                 {m.role === 'assistant' ? (
                   <>
                     {renderRich(m.content)}

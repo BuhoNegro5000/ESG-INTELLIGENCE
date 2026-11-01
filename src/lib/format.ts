@@ -51,3 +51,93 @@ export function riskColor(score: number) {
   if (score >= 2.4) return '#87918c';
   return '#5e9e7a';
 }
+
+/**
+ * Spanish labels for controlled vocabularies that live in SQLite.
+ * Free-text narrative (IRO titles, descriptions, KPI names) is data and is
+ * rendered exactly as stored; only enum-like values are translated here.
+ */
+const LABELS: Record<string, string> = {
+  // Dimensions
+  E: 'Ambiental', S: 'Social', G: 'Gobernanza',
+  Environmental: 'Ambiental', Social: 'Social', Governance: 'Gobernanza',
+  // IRO vocabulary
+  Impact: 'Impacto', Risk: 'Riesgo', Opportunity: 'Oportunidad',
+  Negative: 'Negativa', Positive: 'Positiva',
+  Actual: 'Actual', Potential: 'Potencial',
+  Upstream: 'Aguas arriba', 'Own operations': 'Operaciones propias', Downstream: 'Aguas abajo',
+  'Short term': 'Corto plazo', 'Medium term': 'Mediano plazo', 'Long term': 'Largo plazo',
+  'Short–medium term': 'Corto–mediano plazo', 'Medium–long term': 'Mediano–largo plazo',
+  'Short–long term': 'Corto–largo plazo',
+  // Statuses
+  Draft: 'Borrador', 'In review': 'En revisión', 'Under review': 'En revisión',
+  Approved: 'Aprobado', Rejected: 'Rechazado', Evaluated: 'Evaluado',
+  Published: 'Publicado', 'On track': 'En curso', 'In progress': 'En progreso',
+  'At risk': 'En riesgo', Complete: 'Completo', Partial: 'Parcial', Gap: 'Brecha',
+  'Not started': 'Sin iniciar', Verified: 'Verificado', Submitted: 'Enviado', Expired: 'Vencido',
+  Operating: 'Operativo', 'Needs remediation': 'Requiere remediación', Failed: 'Fallido',
+  Open: 'Abierto', Closed: 'Cerrado', Completed: 'Completado', 'Follow-up required': 'Requiere seguimiento',
+  'Under investigation': 'En investigación', 'Remediation in progress': 'Remediación en curso',
+  Escalated: 'Escalado', Resolved: 'Resuelto', Suspended: 'Suspendido',
+  Conditional: 'Condicional', 'Corrective action': 'Acción correctiva', Active: 'Activo',
+  Effective: 'Efectivo', Deficiency: 'Deficiencia', 'Significant deficiency': 'Deficiencia significativa',
+  'Partially effective': 'Parcialmente efectivo', 'Not tested': 'No probado',
+  Overdue: 'Vencido', Due: 'Por vencer', 'Review due': 'Revisión pendiente', 'Review overdue': 'Revisión vencida',
+  // Severity / exposure
+  Critical: 'Crítico', High: 'Alto', Medium: 'Medio', Low: 'Bajo',
+  'Extremely high': 'Extremadamente alto',
+  // Maturity & assurance
+  Advanced: 'Avanzada', Developing: 'En desarrollo', Foundational: 'Inicial',
+  'Limited assurance': 'Aseguramiento limitado', 'Reasonable assurance': 'Aseguramiento razonable',
+  // Relationships & stakeholders
+  Engaged: 'En diálogo', Consulted: 'Consultado', Regulated: 'Regulado', Affected: 'Afectado', Partner: 'Socio',
+  Workers: 'Trabajadores', Customers: 'Clientes', Communities: 'Comunidades',
+  Authorities: 'Autoridades', 'Civil society': 'Sociedad civil', Suppliers: 'Proveedores',
+  Investors: 'Inversionistas', Employees: 'Colaboradores',
+  Survey: 'Encuesta', Interview: 'Entrevista', 'Community assembly': 'Asamblea comunitaria',
+  'Technical workshop': 'Taller técnico', 'Dialogue table': 'Mesa de diálogo',
+  Quarterly: 'Trimestral', Continuous: 'Continuo', Annual: 'Anual',
+  // Reporting
+  'Sustainability Report': 'Reporte de sostenibilidad',
+  'Investor ESG Briefing': 'Briefing ESG para inversionistas',
+  'Double Materiality Assessment': 'Evaluación de doble materialidad',
+  // Audit actions
+  APPROVED: 'APROBADO', COMMENTED: 'COMENTADO', CREATED: 'CREADO', EXPORTED: 'EXPORTADO',
+  GENERATED: 'GENERADO', LOGIN: 'INGRESO', QUERIED: 'CONSULTADO', REVIEWED: 'REVISADO',
+  UPDATED: 'ACTUALIZADO', UPLOADED: 'CARGADO',
+  // Entity names
+  Stakeholder: 'Grupo de interés', Session: 'Sesión', Report: 'Reporte', KPI: 'KPI',
+  'IRO Register': 'Registro IRO', IRO: 'IRO', Evidence: 'Evidencia', Disclosure: 'Divulgación',
+  Control: 'Control', Assessment: 'Evaluación', AI: 'IA',
+  // Roles
+  'Organization Owner': 'Titular de la organización', 'Data Contributor': 'Contribuidor de datos',
+  Auditor: 'Auditor', 'Corporate ESG Director': 'Dirección ESG corporativa',
+  'CFO / Financial Analyst': 'CFO / Analista financiero',
+  'Sustainability Analyst': 'Analista de sostenibilidad', 'CFO / Finance': 'CFO / Finanzas',
+  'Legal & Compliance': 'Legal y cumplimiento', 'Internal Audit': 'Auditoría interna',
+  'External Assurance': 'Aseguramiento externo',
+};
+
+export function label(value: string | null | undefined) {
+  if (value === null || value === undefined || value === '') return '—';
+  return LABELS[value] ?? value;
+}
+
+export function dimensionLabel(dimension: string) {
+  return dimension === 'E' ? 'Ambiental' : dimension === 'S' ? 'Social' : dimension === 'G' ? 'Gobernanza' : dimension;
+}
+
+/** "1 reporte publicado" / "2 reportes publicados" without hardcoding plurals. */
+export function plural(count: number, singular: string, pluralForm?: string) {
+  return count === 1 ? singular : pluralForm ?? `${singular}s`;
+}
+
+export function countLabel(count: number, singular: string, pluralForm?: string, digits = 0) {
+  return `${fmt(count, digits)} ${plural(count, singular, pluralForm)}`;
+}
+
+/** Some seeded company websites use a reserved `.demo` domain. */
+export function isPublicWebsite(value: string | null | undefined) {
+  if (!value) return false;
+  return !/(^|\.)demo($|[./])/i.test(value);
+}

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Building2, Database, Globe2, Layers3, Lock, Settings2, ShieldCheck, Users } from 'lucide-react';
-import { Callout, Panel, PanelHead, Pill, Progress } from '@/components/ui';
-import { dateTimeLabel, fmt, money } from '@/lib/format';
+import { Callout, Panel, PanelHead, Pill } from '@/components/ui';
+import { dateTimeLabel, fmt, money, label, countLabel } from '@/lib/format';
 import type { AuditLog, Company, Organization, Requirement } from '@/lib/types';
 import type { ViewProps } from './types';
 
@@ -50,8 +50,8 @@ export default function AdminView({ portfolio, workspace, actions }: ViewProps) 
       </div>
 
       <div className="grid grid-4">
-        <div className="panel stat-card"><div className="stat-label"><Building2 size={11} /> Empresas</div><div className="stat-value">{companies.length}</div><div className="stat-foot">{portfolio.organizations.length} organizaciones propietarias</div></div>
-        <div className="panel stat-card"><div className="stat-label"><Layers3 size={11} /> Marcos</div><div className="stat-value">{versions.length}</div><div className="stat-foot">{admin?.requirements.length ?? '—'} requisitos catalogados</div></div>
+        <div className="panel stat-card"><div className="stat-label"><Building2 size={11} /> Empresas</div><div className="stat-value">{companies.length}</div><div className="stat-foot">{countLabel(portfolio.organizations.length, 'organización propietaria', 'organizaciones propietarias')}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><Layers3 size={11} /> Marcos</div><div className="stat-value">{versions.length}</div><div className="stat-foot">{admin?.requirements.length ? countLabel(admin.requirements.length, 'requisito catalogado', 'requisitos catalogados') : 'Sin requisitos catalogados'}</div></div>
         <div className="panel stat-card"><div className="stat-label"><Users size={11} /> Usuarios / roles</div><div className="stat-value">{counts?.users ?? '—'}<small>/{counts?.roles ?? '—'}</small></div><div className="stat-foot">roles definidos</div></div>
         <div className="panel stat-card"><div className="stat-label"><Database size={11} /> Registros auditados</div><div className="stat-value">{counts?.auditLogs ?? logs.length}</div><div className="stat-foot">{counts?.aiRuns ?? 0} consultas de IA registradas</div></div>
       </div>
@@ -61,18 +61,18 @@ export default function AdminView({ portfolio, workspace, actions }: ViewProps) 
           <PanelHead title="Portafolio de empresas" subtitle="Sector, país, ingresos, empleados, calidad del dato y cobertura." actions={<Pill variant="gray">{companies.length} entidades</Pill>} />
           <div className="table-wrap">
             <table className="data">
-              <thead><tr><th>Empresa</th><th>Sector</th><th>País</th><th className="num">Ingresos</th><th className="num">Empleados</th><th className="num">Data quality</th><th className="num">Cobertura</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Empresa</th><th>Sector</th><th>País</th><th className="num">Ingresos</th><th className="num">Empleados</th><th className="num">Calidad del dato</th><th className="num">Cobertura</th><th>Estado</th></tr></thead>
               <tbody>
                 {companies.map((c) => (
                   <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => actions.selectCompany(c.id)}>
-                    <td><span className="strong">{c.name}</span><div className="sub">{c.shortName} · {c.maturity}</div></td>
+                    <td><span className="strong">{c.name}</span><div className="sub">{c.shortName} · {label(c.maturity)}</div></td>
                     <td>{c.sector}<div className="sub">{c.subsector}</div></td>
                     <td>{c.country}</td>
                     <td className="num">{money(c.revenue, c.currency)}</td>
                     <td className="num">{fmt(c.employees)}</td>
                     <td className="num">{c.dataQuality}</td>
                     <td className="num">{c.reportingCoverage}%</td>
-                    <td><Pill variant={c.status === 'Active' ? 'green' : 'gray'}>{c.status}</Pill></td>
+                    <td><Pill variant={c.status === 'Active' ? 'green' : 'gray'}>{label(c.status)}</Pill></td>
                   </tr>
                 ))}
               </tbody>
@@ -92,11 +92,10 @@ export default function AdminView({ portfolio, workspace, actions }: ViewProps) 
           <div className="divider" />
           <Callout tone="amber"><strong>Sin integraciones externas.</strong> La plataforma opera con una base de datos local y no declara conexiones a ERP, CDP, proveedores de datos o aseguradoras.</Callout>
           <div className="divider" />
-          <div className="micro" style={{ marginBottom: 4 }}>Cobertura de datos</div>
+          <div className="micro" style={{ marginBottom: 4 }}>Registros disponibles</div>
           <div className="row"><span style={{ fontSize: 10 }}>Evidencia</span><span className="micro" style={{ marginLeft: 'auto' }}>{counts?.evidence ?? workspace.evidence.length}</span></div>
-          <Progress value={Math.min(100, ((counts?.evidence ?? workspace.evidence.length) / 80) * 100)} tone="green" height={6} />
           <div className="row" style={{ marginTop: 8 }}><span style={{ fontSize: 10 }}>Divulgaciones</span><span className="micro" style={{ marginLeft: 'auto' }}>{counts?.disclosures ?? workspace.disclosures.length}</span></div>
-          <Progress value={Math.min(100, ((counts?.disclosures ?? workspace.disclosures.length) / 300) * 100)} tone="ocean" height={6} />
+          <div className="notice" style={{ marginTop: 8 }}>Los conteos reflejan los registros efectivamente cargados. No se declara un denominador externo ni un objetivo de cobertura.</div>
         </Panel>
 
         <Panel className="col-6" pad>
@@ -119,8 +118,8 @@ export default function AdminView({ portfolio, workspace, actions }: ViewProps) 
           <div className="section-head"><div><h3>Organizaciones</h3><p>Estructura propietaria del portafolio.</p></div><Building2 size={15} className="muted" /></div>
           {(admin?.organizations || portfolio.organizations).map((o) => (
             <div key={o.id} className="row" style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
-              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 550 }}>{o.name}</div><div className="micro">{o.kind} · {o.country}</div></div>
-              <Pill variant="gray">{companies.filter((c) => c.organizationId === o.id).length} empresas</Pill>
+              <div style={{ flex: 1 }}><div style={{ fontSize: 10.5, fontWeight: 550 }}>{o.name}</div><div className="micro">{label(o.kind)} · {o.country}</div></div>
+              <Pill variant="gray">{countLabel(companies.filter((c) => c.organizationId === o.id).length, 'empresa', 'empresas')}</Pill>
             </div>
           ))}
           <div className="divider" />
@@ -131,7 +130,7 @@ export default function AdminView({ portfolio, workspace, actions }: ViewProps) 
         </Panel>
 
         <Panel className="col-12">
-          <PanelHead title="Registro de auditoría global" subtitle="Últimos eventos de todas las empresas del portafolio." actions={<Pill variant="gray">{logs.length} eventos</Pill>} />
+          <PanelHead title="Registro de auditoría global" subtitle="Últimos eventos de todas las empresas del portafolio." actions={<Pill variant="gray">{countLabel(logs.length, 'evento', 'eventos')}</Pill>} />
           <div className="table-wrap">
             <table className="data">
               <thead><tr><th>Fecha</th><th>Empresa</th><th>Actor</th><th>Acción</th><th>Entidad</th><th>Detalle</th><th>Hash</th></tr></thead>
@@ -142,9 +141,9 @@ export default function AdminView({ portfolio, workspace, actions }: ViewProps) 
                     <tr key={l.id}>
                       <td>{dateTimeLabel(l.createdAt)}</td>
                       <td>{company?.shortName || l.companyId || '—'}</td>
-                      <td>{l.actor}<div className="sub">{l.role}</div></td>
-                      <td><Pill variant={l.action === 'CREATED' ? 'green' : l.action === 'UPDATED' ? 'amber' : l.action === 'QUERIED' ? 'blue' : 'gray'}>{l.action}</Pill></td>
-                      <td>{l.entity}<div className="sub">{l.entityId}</div></td>
+                      <td>{l.actor}<div className="sub">{label(l.role)}</div></td>
+                      <td><Pill variant={l.action === 'CREATED' ? 'green' : l.action === 'UPDATED' ? 'amber' : l.action === 'QUERIED' ? 'blue' : 'gray'}>{label(l.action)}</Pill></td>
+                      <td>{label(l.entity)}<div className="sub">{l.entityId}</div></td>
                       <td style={{ maxWidth: 340 }}><span className="sub">{l.detail}</span></td>
                       <td><span className="mono" style={{ fontSize: 7.5 }}>{l.hash.slice(7, 19)}…</span></td>
                     </tr>

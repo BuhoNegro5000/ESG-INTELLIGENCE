@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ArrowRight, BookOpen, FileText, Filter, Layers3, ScrollText, ShieldCheck } from 'lucide-react';
 import { CoverageBars } from '@/components/charts';
 import { Callout, Panel, PanelHead, Pill, Progress, ProgressRow, Tabs } from '@/components/ui';
-import { dateLabel } from '@/lib/format';
+import { dateLabel, label, countLabel } from '@/lib/format';
 import type { ViewProps } from './types';
 
 const INSTRUMENT_LABEL: Record<string, string> = {
@@ -49,10 +49,10 @@ export default function ReportingView({ workspace, actions }: ViewProps) {
       </div>
 
       <div className="grid grid-4">
-        <div className="panel stat-card"><div className="stat-label"><Layers3 size={11} /> Cobertura promedio</div><div className="stat-value">{company.reportingCoverage}<small>%</small></div><div className="stat-foot">{complete.length}/{disclosures.length} requisitos completos</div></div>
-        <div className="panel stat-card"><div className="stat-label"><ScrollText size={11} /> Brechas</div><div className="stat-value" style={{ color: gaps.length ? 'var(--terracotta)' : 'var(--text)' }}>{gaps.length}</div><div className="stat-foot">{disclosures.filter((d) => d.status === 'Partial').length} parciales</div></div>
-        <div className="panel stat-card"><div className="stat-label"><BookOpen size={11} /> Marcos activos</div><div className="stat-value">{frameworks.length}</div><div className="stat-foot">{requirements.length} requisitos catalogados</div></div>
-        <div className="panel stat-card"><div className="stat-label"><FileText size={11} /> Paquetes de reporte</div><div className="stat-value">{reports.length}</div><div className="stat-foot">{published.length} publicados · {avgQuality}% calidad media</div></div>
+        <div className="panel stat-card"><div className="stat-label"><Layers3 size={11} /> Cobertura promedio</div><div className="stat-value">{company.reportingCoverage}<small>%</small></div><div className="stat-foot">{countLabel(complete.length, 'requisito completo', 'requisitos completos')} de {disclosures.length}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><ScrollText size={11} /> Brechas</div><div className="stat-value" style={{ color: gaps.length ? 'var(--terracotta)' : 'var(--text)' }}>{gaps.length}</div><div className="stat-foot">{countLabel(disclosures.filter((d) => d.status === 'Partial').length, 'parcial', 'parciales')}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><BookOpen size={11} /> Marcos activos</div><div className="stat-value">{frameworks.length}</div><div className="stat-foot">{countLabel(requirements.length, 'requisito catalogado', 'requisitos catalogados')}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><FileText size={11} /> Paquetes de reporte</div><div className="stat-value">{reports.length}</div><div className="stat-foot">{countLabel(published.length, 'publicado', 'publicados')} · {avgQuality}% calidad media</div></div>
       </div>
 
       <div style={{ marginTop: 14 }}>
@@ -98,7 +98,7 @@ export default function ReportingView({ workspace, actions }: ViewProps) {
                     <tr key={d.id}>
                       <td><span className="strong">{d.title}</span><div className="sub">{d.requirement} · {d.dataPoints}</div></td>
                       <td>{d.framework}<div className="sub">{d.version}</div></td>
-                      <td><Pill variant={d.status === 'Complete' ? 'green' : d.status === 'Partial' ? 'amber' : 'red'}>{d.status}</Pill></td>
+                      <td><Pill variant={d.status === 'Complete' ? 'green' : d.status === 'Partial' ? 'amber' : 'red'}>{label(d.status)}</Pill></td>
                       <td className="num" style={{ minWidth: 80 }}><ProgressRow value={d.coverage} tone={d.coverage >= 80 ? 'green' : d.coverage >= 50 ? 'amber' : 'red'} /></td>
                       <td>{d.owner}</td>
                       <td><span className="sub">{d.evidence}</span></td>
@@ -107,7 +107,7 @@ export default function ReportingView({ workspace, actions }: ViewProps) {
                 </tbody>
               </table>
             </div>
-            <div className="table-footer"><span>{filtered.length} requisitos visibles</span><span>Actualizado {dateLabel(company.updatedAt)}</span></div>
+            <div className="table-footer"><span>{countLabel(filtered.length, 'requisito visible', 'requisitos visibles')}</span><span>Actualizado {dateLabel(company.updatedAt)}</span></div>
           </Panel>
         </div>
       )}
@@ -115,7 +115,7 @@ export default function ReportingView({ workspace, actions }: ViewProps) {
       {tab === 'reports' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-7">
-            <PanelHead title="Biblioteca de reportes" subtitle="Paquetes generados, estado, cobertura y páginas." actions={<Pill variant="gray">{reports.length} paquetes</Pill>} />
+            <PanelHead title="Biblioteca de reportes" subtitle="Paquetes generados, estado, cobertura y páginas." actions={<Pill variant="gray">{countLabel(reports.length, 'paquete', 'paquetes')}</Pill>} />
             <div className="table-wrap">
               <table className="data">
                 <thead><tr><th>Reporte</th><th>Tipo</th><th>Marco</th><th>Período</th><th>Estado</th><th className="num">Cobertura</th><th className="num">Páginas</th><th>Generado</th></tr></thead>
@@ -123,10 +123,10 @@ export default function ReportingView({ workspace, actions }: ViewProps) {
                   {reports.map((r) => (
                     <tr key={r.id}>
                       <td><span className="strong">{r.title}</span><div className="sub">{r.id}</div></td>
-                      <td>{r.type}</td>
+                      <td>{label(r.type)}</td>
                       <td>{r.framework}</td>
                       <td>{r.period}</td>
-                      <td><Pill variant={r.status === 'Published' ? 'green' : r.status === 'Draft' ? 'gray' : 'amber'}>{r.status}</Pill></td>
+                      <td><Pill variant={r.status === 'Published' ? 'green' : r.status === 'Draft' ? 'gray' : 'amber'}>{label(r.status)}</Pill></td>
                       <td className="num">{r.coverage}%</td>
                       <td className="num">{r.pages}</td>
                       <td>{dateLabel(r.generatedAt)}</td>
@@ -135,11 +135,11 @@ export default function ReportingView({ workspace, actions }: ViewProps) {
                 </tbody>
               </table>
             </div>
-            <div className="table-footer"><span>{published.length} publicados</span><span>Los reportes se generan a partir de los datos del workspace.</span></div>
+            <div className="table-footer"><span>{countLabel(published.length, 'publicado', 'publicados')}</span><span>Los reportes se generan a partir de los datos del workspace.</span></div>
           </Panel>
           <Panel className="col-5" pad>
             <div className="section-head"><div><h3>Generar paquete de reporte</h3><p>Vista previa imprimible con los datos actuales.</p></div><FileText size={15} className="muted" /></div>
-            <div className="mini-card" style={{ marginBottom: 8 }}><div className="label">Perímetro</div><div style={{ fontSize: 10.5, marginTop: 4 }}>{assessment?.scope || 'Corporate perimeter'}</div></div>
+            <div className="mini-card" style={{ marginBottom: 8 }}><div className="label">Perímetro</div><div style={{ fontSize: 10.5, marginTop: 4 }}>{assessment?.scope || 'Perímetro corporativo'}</div></div>
             <div className="mini-card" style={{ marginBottom: 8 }}><div className="label">Metodología</div><div style={{ fontSize: 10.5, marginTop: 4 }}>{assessment?.methodology || 'Doble materialidad'}</div></div>
             <div className="mini-card"><div className="label">Contenido incluido</div><div style={{ fontSize: 10.5, marginTop: 4 }}>Perfil, asuntos materiales, IRO críticos, KPIs, objetivos, divulgaciones, evidencia y cobertura por marco.</div></div>
             <div className="divider" />
@@ -169,7 +169,7 @@ export default function ReportingView({ workspace, actions }: ViewProps) {
       {tab === 'requirements' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-12">
-            <PanelHead title="Catálogo de requisitos" subtitle="Marco, versión, código, tipo de instrumento y vigencia. No todo requisito es una obligación legal." actions={<Pill variant="gray">{requirements.length} requisitos</Pill>} />
+            <PanelHead title="Catálogo de requisitos" subtitle="Marco, versión, código, tipo de instrumento y vigencia. No todo requisito es una obligación legal." actions={<Pill variant="gray">{countLabel(requirements.length, 'requisito', 'requisitos')}</Pill>} />
             <div className="table-wrap">
               <table className="data">
                 <thead><tr><th>Requisito</th><th>Marco</th><th>Versión</th><th>Instrumento</th><th>Categoría</th><th>Vigencia</th></tr></thead>
@@ -180,7 +180,7 @@ export default function ReportingView({ workspace, actions }: ViewProps) {
                       <td>{r.framework}</td>
                       <td>{r.version}</td>
                       <td><Pill variant={INSTRUMENT_TONE[r.instrumentType] || 'gray'}>{INSTRUMENT_LABEL[r.instrumentType] || r.instrumentType}</Pill></td>
-                      <td>{r.category}</td>
+                      <td>{label(r.category)}</td>
                       <td>{r.effective}</td>
                     </tr>
                   ))}

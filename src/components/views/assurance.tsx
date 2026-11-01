@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { BadgeCheck, ClipboardCheck, FileCheck2, Fingerprint, Lock, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Callout, Panel, PanelHead, Pill, Progress, ProgressRow, Tabs } from '@/components/ui';
-import { dateLabel, dateTimeLabel } from '@/lib/format';
+import { dateLabel, dateTimeLabel, label, countLabel } from '@/lib/format';
 import type { ViewProps } from './types';
 
 export default function AssuranceView({ workspace }: ViewProps) {
@@ -25,16 +25,16 @@ export default function AssuranceView({ workspace }: ViewProps) {
           <p>Evidencia, controles, hallazgos, trazabilidad y calidad del dato. La integridad del reporte se sostiene en fuentes verificables, no en la declaración de completitud.</p>
         </div>
         <div className="page-head-actions">
-          <Pill variant={highFindings.length ? 'red' : 'green'}>{highFindings.length} hallazgos altos</Pill>
-          <Pill variant="blue">{company.assuranceStatus}</Pill>
+          <Pill variant={highFindings.length ? 'red' : 'green'}>{countLabel(highFindings.length, 'hallazgo alto', 'hallazgos altos')}</Pill>
+          <Pill variant="blue">{label(company.assuranceStatus)}</Pill>
         </div>
       </div>
 
       <div className="grid grid-4">
-        <div className="panel stat-card"><div className="stat-label"><FileCheck2 size={11} /> Evidencia verificada</div><div className="stat-value">{verified.length}<small>/{evidence.length}</small></div><div className="stat-foot">{pending.length} pendientes o vencidas</div></div>
-        <div className="panel stat-card"><div className="stat-label"><ShieldCheck size={11} /> Controles operativos</div><div className="stat-value">{operating.length}<small>/{controls.length}</small></div><div className="stat-foot">{controls.reduce((a, b) => a + b.deficiencies, 0)} deficiencias</div></div>
-        <div className="panel stat-card"><div className="stat-label"><ShieldAlert size={11} /> Hallazgos abiertos</div><div className="stat-value" style={{ color: highFindings.length ? 'var(--terracotta)' : 'var(--text)' }}>{openFindings.length}</div><div className="stat-foot">{findings.filter((f) => f.status === 'Overdue').length} vencidos</div></div>
-        <div className="panel stat-card"><div className="stat-label"><Fingerprint size={11} /> Data quality</div><div className="stat-value">{dataQuality.overall}<small>/100</small></div><div className="stat-foot">trazabilidad {dataQuality.traceability}%</div></div>
+        <div className="panel stat-card"><div className="stat-label"><FileCheck2 size={11} /> Evidencia verificada</div><div className="stat-value">{verified.length}<small>/{evidence.length}</small></div><div className="stat-foot">{countLabel(pending.length, 'pendiente o vencida', 'pendientes o vencidas')}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><ShieldCheck size={11} /> Controles operativos</div><div className="stat-value">{operating.length}<small>/{controls.length}</small></div><div className="stat-foot">{countLabel(controls.reduce((a, b) => a + (Number(b.deficiencies) || 0), 0), 'deficiencia', 'deficiencias')}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><ShieldAlert size={11} /> Hallazgos abiertos</div><div className="stat-value" style={{ color: highFindings.length ? 'var(--terracotta)' : 'var(--text)' }}>{openFindings.length}</div><div className="stat-foot">{countLabel(findings.filter((f) => f.status === 'Overdue').length, 'vencido', 'vencidos')}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><Fingerprint size={11} /> Calidad del dato</div><div className="stat-value">{dataQuality.overall}<small>/100</small></div><div className="stat-foot">trazabilidad {dataQuality.traceability}%</div></div>
       </div>
 
       <div style={{ marginTop: 14 }}>
@@ -50,7 +50,7 @@ export default function AssuranceView({ workspace }: ViewProps) {
       {tab === 'evidence' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-8">
-            <PanelHead title="Repositorio de evidencia" subtitle="Documento, tipo, vínculo, propietario, fecha, estado, tamaño y hash." actions={<Pill variant="gray">{evidence.length} registros</Pill>} />
+            <PanelHead title="Repositorio de evidencia" subtitle="Documento, tipo, vínculo, propietario, fecha, estado, tamaño y hash." actions={<Pill variant="gray">{countLabel(evidence.length, 'registro', 'registros')}</Pill>} />
             <div className="table-wrap">
               <table className="data">
                 <thead><tr><th>Evidencia</th><th>Tipo</th><th>Vinculada a</th><th>Propietario</th><th>Fecha</th><th>Estado</th><th>Hash</th></tr></thead>
@@ -58,18 +58,18 @@ export default function AssuranceView({ workspace }: ViewProps) {
                   {evidence.map((e) => (
                     <tr key={e.id}>
                       <td><span className="strong">{e.name}</span><div className="sub">{e.size}</div></td>
-                      <td>{e.type}</td>
+                      <td>{label(e.type)}</td>
                       <td>{e.linkedTo}</td>
                       <td>{e.owner}</td>
                       <td>{dateLabel(e.date)}</td>
-                      <td><Pill variant={e.status === 'Verified' ? 'green' : e.status === 'Pending' ? 'amber' : 'red'}>{e.status}</Pill></td>
+                      <td><Pill variant={e.status === 'Verified' ? 'green' : e.status === 'Pending' ? 'amber' : 'red'}>{label(e.status)}</Pill></td>
                       <td><span className="mono" style={{ fontSize: 8 }}>{e.hash.slice(0, 16)}…</span></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="table-footer"><span>{verified.length} verificadas · {pending.length} pendientes o vencidas</span><span>El hash identifica el archivo, no certifica su contenido.</span></div>
+            <div className="table-footer"><span>{verified.length} verificadas · {countLabel(pending.length, 'pendiente o vencida', 'pendientes o vencidas')}</span><span>El hash identifica el archivo, no certifica su contenido.</span></div>
           </Panel>
           <Panel className="col-4" pad>
             <div className="section-head"><div><h3>Reglas de evidencia</h3><p>Qué hace verificable un dato.</p></div><BadgeCheck size={15} className="muted" /></div>
@@ -96,13 +96,13 @@ export default function AssuranceView({ workspace }: ViewProps) {
                   {controls.map((c) => (
                     <tr key={c.id}>
                       <td><span className="strong">{c.title}</span><div className="sub">{c.code}</div></td>
-                      <td>{c.risk}</td>
+                      <td>{label(c.risk)}</td>
                       <td>{c.owner}</td>
-                      <td>{c.frequency}</td>
+                      <td>{label(c.frequency)}</td>
                       <td><span className="sub">{c.evidenceRequired}</span></td>
-                      <td><Pill variant={c.testResult === 'Effective' ? 'green' : c.testResult === 'Deficient' ? 'red' : 'amber'}>{c.testResult}</Pill></td>
+                      <td><Pill variant={c.testResult === 'Effective' ? 'green' : c.testResult === 'Deficient' ? 'red' : 'amber'}>{label(c.testResult)}</Pill></td>
                       <td className="num">{c.deficiencies}</td>
-                      <td><Pill variant={c.status === 'Operating' ? 'green' : 'red'}>{c.status}</Pill></td>
+                      <td><Pill variant={c.status === 'Operating' ? 'green' : 'red'}>{label(c.status)}</Pill></td>
                     </tr>
                   ))}
                 </tbody>
@@ -113,7 +113,7 @@ export default function AssuranceView({ workspace }: ViewProps) {
             <div className="section-head"><div><h3>Resultado de pruebas</h3><p>Eficacia operativa.</p></div><ClipboardCheck size={15} className="muted" /></div>
             {['Effective', 'Partially effective', 'Deficient', 'Not tested'].map((r) => {
               const count = controls.filter((c) => c.testResult === r).length;
-              return <div key={r} className="row" style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}><span style={{ fontSize: 10, flex: 1 }}>{r}</span><Pill variant={r === 'Effective' ? 'green' : r === 'Deficient' ? 'red' : 'amber'}>{count}</Pill></div>;
+              return <div key={r} className="row" style={{ padding: '6px 0', borderBottom: '1px solid var(--line)' }}><span style={{ fontSize: 10, flex: 1 }}>{label(r)}</span><Pill variant={r === 'Effective' ? 'green' : r === 'Deficient' ? 'red' : 'amber'}>{count}</Pill></div>;
             })}
             <div className="divider" />
             <div className="micro" style={{ marginBottom: 4 }}>Cobertura de controles</div>
@@ -126,7 +126,7 @@ export default function AssuranceView({ workspace }: ViewProps) {
       {tab === 'findings' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-8">
-            <PanelHead title="Hallazgos y acciones correctivas" subtitle="Severidad, estado, responsable, fecha límite, condición y acción." actions={<Pill variant={highFindings.length ? 'red' : 'green'}>{openFindings.length} abiertos</Pill>} />
+            <PanelHead title="Hallazgos y acciones correctivas" subtitle="Severidad, estado, responsable, fecha límite, condición y acción." actions={<Pill variant={highFindings.length ? 'red' : 'green'}>{countLabel(openFindings.length, 'abierto', 'abiertos')}</Pill>} />
             <div className="table-wrap">
               <table className="data">
                 <thead><tr><th>Hallazgo</th><th>Severidad</th><th>Estado</th><th>Responsable</th><th>Vencimiento</th><th>Acción</th></tr></thead>
@@ -134,11 +134,11 @@ export default function AssuranceView({ workspace }: ViewProps) {
                   {findings.map((f) => (
                     <tr key={f.id}>
                       <td><span className="strong">{f.title}</span><div className="sub">{f.code} · {f.finding}</div></td>
-                      <td><Pill variant={f.severity === 'Critical' ? 'red' : f.severity === 'High' ? 'amber' : 'gray'}>{f.severity}</Pill></td>
-                      <td><Pill variant={f.status === 'Closed' ? 'green' : f.status === 'Overdue' ? 'red' : 'amber'}>{f.status}</Pill></td>
+                      <td><Pill variant={f.severity === 'Critical' ? 'red' : f.severity === 'High' ? 'amber' : 'gray'}>{label(f.severity)}</Pill></td>
+                      <td><Pill variant={f.status === 'Closed' ? 'green' : f.status === 'Overdue' ? 'red' : 'amber'}>{label(f.status)}</Pill></td>
                       <td>{f.owner}</td>
                       <td>{dateLabel(f.dueDate)}</td>
-                      <td style={{ maxWidth: 260 }}><span className="sub">{f.action}</span></td>
+                      <td style={{ maxWidth: 260 }}><span className="sub">{label(f.action)}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -163,7 +163,7 @@ export default function AssuranceView({ workspace }: ViewProps) {
       {tab === 'audit' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-8">
-            <PanelHead title="Registro de auditoría" subtitle="Registro cronológico de cambios con actor, rol, entidad y hash." actions={<Pill variant="gray">{auditLogs.length} eventos</Pill>} />
+            <PanelHead title="Registro de auditoría" subtitle="Registro cronológico de cambios con actor, rol, entidad y hash." actions={<Pill variant="gray">{countLabel(auditLogs.length, 'evento', 'eventos')}</Pill>} />
             <div className="table-wrap">
               <table className="data">
                 <thead><tr><th>Fecha</th><th>Actor</th><th>Rol</th><th>Acción</th><th>Entidad</th><th>Detalle</th><th>Hash</th></tr></thead>
@@ -172,9 +172,9 @@ export default function AssuranceView({ workspace }: ViewProps) {
                     <tr key={l.id}>
                       <td>{dateTimeLabel(l.createdAt)}</td>
                       <td>{l.actor}</td>
-                      <td>{l.role}</td>
-                      <td><Pill variant={l.action === 'CREATED' ? 'green' : l.action === 'UPDATED' ? 'amber' : l.action === 'DELETED' ? 'red' : 'blue'}>{l.action}</Pill></td>
-                      <td>{l.entity}<div className="sub">{l.entityId}</div></td>
+                      <td>{label(l.role)}</td>
+                      <td><Pill variant={l.action === 'CREATED' ? 'green' : l.action === 'UPDATED' ? 'amber' : l.action === 'DELETED' ? 'red' : 'blue'}>{label(l.action)}</Pill></td>
+                      <td>{label(l.entity)}<div className="sub">{l.entityId}</div></td>
                       <td style={{ maxWidth: 300 }}><span className="sub">{l.detail}</span></td>
                       <td><span className="mono" style={{ fontSize: 7.5 }}>{l.hash.slice(7, 23)}…</span></td>
                     </tr>
@@ -182,7 +182,7 @@ export default function AssuranceView({ workspace }: ViewProps) {
                 </tbody>
               </table>
             </div>
-            <div className="table-footer"><span>{auditLogs.length} eventos registrados</span><span>El registro es append-only en la lógica de aplicación.</span></div>
+            <div className="table-footer"><span>{countLabel(auditLogs.length, 'evento registrado', 'eventos registrados')}</span><span>El registro es append-only en la lógica de aplicación.</span></div>
           </Panel>
           <Panel className="col-4" pad>
             <div className="section-head"><div><h3>Integridad del registro</h3><p>Trazabilidad de cambios.</p></div><Lock size={15} className="muted" /></div>
@@ -217,7 +217,7 @@ export default function AssuranceView({ workspace }: ViewProps) {
               <div className="callout"><ShieldCheck size={15} /><div><strong>Cobertura parcial.</strong> La cadena de valor de segundo nivel y las emisiones de alcance 3 pueden estar incompletas y se declaran como brecha.</div></div>
             </div>
             <div className="divider" />
-            <div className="row"><span className="micro">Estado de aseguramiento</span><Pill variant="blue">{company.assuranceStatus}</Pill></div>
+            <div className="row"><span className="micro">Estado de aseguramiento</span><Pill variant="blue">{label(company.assuranceStatus)}</Pill></div>
           </Panel>
         </div>
       )}

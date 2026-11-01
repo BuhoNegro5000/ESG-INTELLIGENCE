@@ -4,7 +4,7 @@ import './globals.css';
 import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
-  title: 'ESG Intelligence Command Center — Green Owl Labs',
+  title: 'Centro de mando ESG — Green Owl Labs',
   description: 'Inteligencia de sostenibilidad corporativa, doble materialidad y gestión del desempeño.',
   icons: { icon: '/green-owl-mark.png' },
 };

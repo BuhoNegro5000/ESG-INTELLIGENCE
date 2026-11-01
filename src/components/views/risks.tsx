@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ArrowRight, Coins, Compass, ShieldAlert, Target, TrendingUp } from 'lucide-react';
 import { OpportunityBars, RiskHeatmap } from '@/components/charts';
 import { Callout, MaterialityPill, Panel, PanelHead, Pill, ProgressRow, Tabs } from '@/components/ui';
-import { money } from '@/lib/format';
+import { money, label, countLabel } from '@/lib/format';
 import type { ViewProps } from './types';
 
 export default function RisksView({ workspace, actions }: ViewProps) {
@@ -28,14 +28,14 @@ export default function RisksView({ workspace, actions }: ViewProps) {
           <p>Exposición financiera, probabilidad, magnitud, efecto financiero, controles y riesgo residual. Los riesgos y oportunidades se leen junto a la materialidad de impacto, sin compensación.</p>
         </div>
         <div className="page-head-actions">
-          <Pill variant={criticalRisks.length ? 'red' : 'green'}>{criticalRisks.length} riesgos críticos</Pill>
+          <Pill variant={criticalRisks.length ? 'red' : 'green'}>{countLabel(criticalRisks.length, 'riesgo crítico', 'riesgos críticos')}</Pill>
           <Pill variant="blue">Exposición {company.financialExposure}/100</Pill>
         </div>
       </div>
 
       <div className="grid grid-4">
-        <div className="panel stat-card"><div className="stat-label"><ShieldAlert size={11} /> Riesgos registrados</div><div className="stat-value">{risks.length}</div><div className="stat-foot">{highRisks.length} con exposición alta · {criticalRisks.length} críticos</div></div>
-        <div className="panel stat-card"><div className="stat-label"><TrendingUp size={11} /> Riesgo residual medio</div><div className="stat-value">{avgResidual.toFixed(1)}<small>/5</small></div><div className="stat-foot">{residualGap} riesgos con reducción por controles</div></div>
+        <div className="panel stat-card"><div className="stat-label"><ShieldAlert size={11} /> Riesgos registrados</div><div className="stat-value">{risks.length}</div><div className="stat-foot">{countLabel(highRisks.length, 'con exposición alta', 'con exposición alta')} · {countLabel(criticalRisks.length, 'crítico', 'críticos')}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><TrendingUp size={11} /> Riesgo residual medio</div><div className="stat-value">{avgResidual.toFixed(1)}<small>/5</small></div><div className="stat-foot">{countLabel(residualGap, 'riesgo', 'riesgos')} con reducción por controles</div></div>
         <div className="panel stat-card"><div className="stat-label"><Compass size={11} /> Oportunidades</div><div className="stat-value" style={{ color: '#6fbf8f' }}>{opportunities.length}</div><div className="stat-foot">oportunidad de transición {company.transitionOpportunity}/100</div></div>
         <div className="panel stat-card"><div className="stat-label"><Coins size={11} /> Inversión / beneficio</div><div className="stat-value" style={{ fontSize: 19 }}>{money(investment)} <span style={{ color: 'var(--muted)' }}>/</span> {money(benefit)}</div><div className="stat-foot">CAPEX estimado / beneficio anual</div></div>
       </div>
@@ -52,7 +52,7 @@ export default function RisksView({ workspace, actions }: ViewProps) {
       {tab === 'register' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-12">
-            <PanelHead title="Registro de riesgos" subtitle="Probabilidad, magnitud, efecto financiero, controles, inherente y residual." actions={<Pill variant="gray">{risks.length} riesgos</Pill>} />
+            <PanelHead title="Registro de riesgos" subtitle="Probabilidad, magnitud, efecto financiero, controles, inherente y residual." actions={<Pill variant="gray">{countLabel(risks.length, 'riesgo', 'riesgos')}</Pill>} />
             <div className="table-wrap">
               <table className="data">
                 <thead><tr><th>Riesgo</th><th>Asunto</th><th>Horizonte</th><th className="num">Prob.</th><th className="num">Magnitud</th><th className="num">Financiero</th><th className="num">Inherente</th><th className="num">Residual</th><th>Materialidad</th><th>Estado</th></tr></thead>
@@ -68,7 +68,7 @@ export default function RisksView({ workspace, actions }: ViewProps) {
                       <td className="num">{r.inherent ?? '—'}</td>
                       <td className="num"><span style={{ color: (r.residual || 0) >= 4 ? 'var(--terracotta)' : 'inherit' }}>{r.residual ?? '—'}</span></td>
                       <td><MaterialityPill value={r.materiality} /></td>
-                      <td>{r.critical ? <Pill variant="red">Crítico</Pill> : <Pill variant={r.status === 'Approved' ? 'green' : 'gray'}>{r.status}</Pill>}</td>
+                      <td>{r.critical ? <Pill variant="red">Crítico</Pill> : <Pill variant={r.status === 'Approved' ? 'green' : 'gray'}>{label(r.status)}</Pill>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -81,7 +81,7 @@ export default function RisksView({ workspace, actions }: ViewProps) {
             {criticalRisks.slice(0, 5).map((r) => (
               <div key={r.id} className="iro-item" onClick={() => actions.openIRO(r)}>
                 <span className={`iro-mark ${r.materiality}`} />
-                <div className="iro-body"><div className="iro-code">{r.code} · {r.horizon}</div><div className="iro-title">{r.title}</div><div className="iro-meta"><span>{r.topicName}</span><span className="dot-sep" /><span>{r.location}</span></div></div>
+                <div className="iro-body"><div className="iro-code">{r.code} · {label(r.horizon)}</div><div className="iro-title">{r.title}</div><div className="iro-meta"><span>{r.topicName}</span><span className="dot-sep" /><span>{r.location}</span></div></div>
                 <div className="iro-scores"><span className="badge red">Fin {r.financialScore.toFixed(1)}</span></div>
               </div>
             ))}
@@ -103,7 +103,7 @@ export default function RisksView({ workspace, actions }: ViewProps) {
       {tab === 'heatmap' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-7">
-            <PanelHead title="Mapa de calor de riesgos" subtitle="Probabilidad × impacto financiero, con conteo y residual promedio." actions={<Pill variant="amber">{riskHeatmap.reduce((a, b) => a + b.count, 0)} riesgos mapeados</Pill>} />
+            <PanelHead title="Mapa de calor de riesgos" subtitle="Probabilidad × impacto financiero, con conteo y residual promedio." actions={<Pill variant="amber">{countLabel(riskHeatmap.reduce((a, b) => a + b.count, 0), 'riesgo mapeado', 'riesgos mapeados')}</Pill>} />
             <div className="panel-body" style={{ paddingTop: 14 }}>
               <RiskHeatmap data={riskHeatmap} />
               <div className="matrix-note">Las celdas muestran el número de riesgos. El color refleja la severidad combinada de probabilidad e impacto. Los riesgos sin coordenadas completas se declaran como dato faltante.</div>
@@ -115,7 +115,7 @@ export default function RisksView({ workspace, actions }: ViewProps) {
               const list = risks.filter((r) => r.horizon === h);
               return (
                 <div key={h} style={{ marginBottom: 9 }}>
-                  <div className="row"><span style={{ fontSize: 10 }}>{h}</span><span className="micro" style={{ marginLeft: 'auto' }}>{list.length} riesgos · residual medio {(list.reduce((a, b) => a + (b.residual || 0), 0) / Math.max(1, list.length)).toFixed(1)}</span></div>
+                  <div className="row"><span style={{ fontSize: 10 }}>{h}</span><span className="micro" style={{ marginLeft: 'auto' }}>{countLabel(list.length, 'riesgo', 'riesgos')} · residual medio {(list.reduce((a, b) => a + (b.residual || 0), 0) / Math.max(1, list.length)).toFixed(1)}</span></div>
                   <ProgressRow value={(list.length / Math.max(1, risks.length)) * 100} tone={h === 'Long term' ? 'amber' : 'ocean'} />
                 </div>
               );
@@ -124,7 +124,7 @@ export default function RisksView({ workspace, actions }: ViewProps) {
             <div className="micro" style={{ marginBottom: 6 }}>Riesgos por dimensión</div>
             {(['E', 'S', 'G'] as const).map((d) => {
               const list = risks.filter((r) => r.dimension === d);
-              return <div key={d} className="row" style={{ padding: '5px 0' }}><Pill variant={d === 'E' ? 'green' : d === 'S' ? 'blue' : 'amber'}>{d}</Pill><span className="micro" style={{ marginLeft: 'auto' }}>{list.length} riesgos · {list.filter((r) => r.critical).length} críticos</span></div>;
+              return <div key={d} className="row" style={{ padding: '5px 0' }}><Pill variant={d === 'E' ? 'green' : d === 'S' ? 'blue' : 'amber'}>{label(d)}</Pill><span className="micro" style={{ marginLeft: 'auto' }}>{countLabel(list.length, 'riesgo', 'riesgos')} · {countLabel(list.filter((r) => r.critical).length, 'crítico', 'críticos')}</span></div>;
             })}
           </Panel>
           <Panel className="col-12" pad>
@@ -142,7 +142,7 @@ export default function RisksView({ workspace, actions }: ViewProps) {
       {tab === 'opportunities' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-8">
-            <PanelHead title="Oportunidades de transición" subtitle="Inversión, beneficio anual, horizonte y confianza de la estimación." actions={<Pill variant="green">{opportunities.length} oportunidades</Pill>} />
+            <PanelHead title="Oportunidades de transición" subtitle="Inversión, beneficio anual, horizonte y confianza de la estimación." actions={<Pill variant="green">{countLabel(opportunities.length, 'oportunidad', 'oportunidades')}</Pill>} />
             <div className="panel-body" style={{ paddingTop: 6 }}>
               <OpportunityBars iros={opportunities} />
               <div className="divider" />
@@ -182,7 +182,7 @@ export default function RisksView({ workspace, actions }: ViewProps) {
       {tab === 'controls' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-8">
-            <PanelHead title="Controles y mitigación" subtitle="Controles vinculados a riesgos, eficacia probada y deficiencias." actions={<Pill variant="gray">{controls.length} controles</Pill>} />
+            <PanelHead title="Controles y mitigación" subtitle="Controles vinculados a riesgos, eficacia probada y deficiencias." actions={<Pill variant="gray">{countLabel(controls.length, 'control', 'controles')}</Pill>} />
             <div className="table-wrap">
               <table className="data">
                 <thead><tr><th>Control</th><th>Riesgo mitigado</th><th>Frecuencia</th><th>Prueba</th><th className="num">Deficiencias</th><th>Estado</th></tr></thead>
@@ -190,11 +190,11 @@ export default function RisksView({ workspace, actions }: ViewProps) {
                   {controls.map((c) => (
                     <tr key={c.id}>
                       <td><span className="strong">{c.title}</span><div className="sub">{c.code} · {c.owner}</div></td>
-                      <td>{c.risk}</td>
-                      <td>{c.frequency}</td>
-                      <td><Pill variant={c.testResult === 'Effective' ? 'green' : c.testResult === 'Deficient' ? 'red' : 'amber'}>{c.testResult}</Pill></td>
+                      <td>{label(c.risk)}</td>
+                      <td>{label(c.frequency)}</td>
+                      <td><Pill variant={c.testResult === 'Effective' ? 'green' : c.testResult === 'Deficient' ? 'red' : 'amber'}>{label(c.testResult)}</Pill></td>
                       <td className="num">{c.deficiencies}</td>
-                      <td><Pill variant={c.status === 'Operating' ? 'green' : 'red'}>{c.status}</Pill></td>
+                      <td><Pill variant={c.status === 'Operating' ? 'green' : 'red'}>{label(c.status)}</Pill></td>
                     </tr>
                   ))}
                 </tbody>
@@ -205,7 +205,7 @@ export default function RisksView({ workspace, actions }: ViewProps) {
             <div className="section-head"><div><h3>Hallazgos abiertos</h3><p>Debilidades que afectan la mitigación.</p></div><ShieldAlert size={15} className="muted" /></div>
             {findings.filter((f) => f.status !== 'Closed').map((f) => (
               <div key={f.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
-                <div className="row"><div style={{ fontSize: 10, fontWeight: 550, flex: 1 }}>{f.title}</div><Pill variant={f.severity === 'Critical' ? 'red' : f.severity === 'High' ? 'amber' : 'gray'}>{f.severity}</Pill></div>
+                <div className="row"><div style={{ fontSize: 10, fontWeight: 550, flex: 1 }}>{f.title}</div><Pill variant={f.severity === 'Critical' ? 'red' : f.severity === 'High' ? 'amber' : 'gray'}>{label(f.severity)}</Pill></div>
                 <div className="micro">{f.owner} · vence {f.dueDate}</div>
               </div>
             ))}

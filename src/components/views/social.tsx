@@ -5,7 +5,7 @@ import {
   AlertTriangle, ArrowRight, BadgeCheck, HeartHandshake, Megaphone, ShieldCheck, Users, Waypoints,
 } from 'lucide-react';
 import { Callout, MaterialityPill, Panel, PanelHead, Pill, ProgressRow, Tabs } from '@/components/ui';
-import { dateLabel, fmt, money } from '@/lib/format';
+import { dateLabel, fmt, money, label, countLabel } from '@/lib/format';
 import type { ViewProps } from './types';
 
 const DUE_DILIGENCE_STEPS = [
@@ -39,15 +39,15 @@ export default function SocialView({ workspace, actions }: ViewProps) {
           <p>Grupos de interés, participación significativa, reclamos, acceso a remediación y debida diligencia en derechos humanos a lo largo de la cadena de valor.</p>
         </div>
         <div className="page-head-actions">
-          <Pill variant={criticalGrievances.length ? 'red' : 'green'}>{criticalGrievances.length} reclamos críticos</Pill>
+          <Pill variant={criticalGrievances.length ? 'red' : 'green'}>{countLabel(criticalGrievances.length, 'reclamo crítico', 'reclamos críticos')}</Pill>
           <Pill variant="amber">UNGP · OECD</Pill>
         </div>
       </div>
 
       <div className="grid grid-4">
         <div className="panel stat-card"><div className="stat-label"><Users size={11} /> Grupos de interés</div><div className="stat-value">{stakeholders.length}</div><div className="stat-foot">{engagements.length} procesos de participación</div></div>
-        <div className="panel stat-card"><div className="stat-label"><Megaphone size={11} /> Reclamos abiertos</div><div className="stat-value" style={{ color: criticalGrievances.length ? 'var(--terracotta)' : 'var(--text)' }}>{openGrievances.length}</div><div className="stat-foot">{criticalGrievances.length} críticos · {grievances.length} totales</div></div>
-        <div className="panel stat-card"><div className="stat-label"><ShieldCheck size={11} /> IRO con derechos</div><div className="stat-value">{rightsIros.length}</div><div className="stat-foot">{rightsIros.filter((i) => i.critical).length} críticos</div></div>
+        <div className="panel stat-card"><div className="stat-label"><Megaphone size={11} /> Reclamos abiertos</div><div className="stat-value" style={{ color: criticalGrievances.length ? 'var(--terracotta)' : 'var(--text)' }}>{openGrievances.length}</div><div className="stat-foot">{countLabel(criticalGrievances.length, 'crítico', 'críticos')} · {countLabel(grievances.length, 'total', 'totales')}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><ShieldCheck size={11} /> IRO con derechos</div><div className="stat-value">{rightsIros.length}</div><div className="stat-foot">{countLabel(rightsIros.filter((i) => i.critical).length, 'crítico', 'críticos')}</div></div>
         <div className="panel stat-card"><div className="stat-label"><Waypoints size={11} /> Proveedores alto riesgo</div><div className="stat-value" style={{ color: highRiskSuppliers.length ? 'var(--amber)' : 'var(--text)' }}>{highRiskSuppliers.length}</div><div className="stat-foot">{lowAssessed.length} con evaluación &lt; 60%</div></div>
       </div>
 
@@ -67,7 +67,7 @@ export default function SocialView({ workspace, actions }: ViewProps) {
       {tab === 'stakeholders' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-8">
-            <PanelHead title="Mapa de grupos de interés" subtitle="Influencia, exposición y vulnerabilidad se evalúan por separado." actions={<Pill variant="gray">{stakeholders.length} grupos</Pill>} />
+            <PanelHead title="Mapa de grupos de interés" subtitle="Influencia, exposición y vulnerabilidad se evalúan por separado." actions={<Pill variant="gray">{countLabel(stakeholders.length, 'grupo', 'grupos')}</Pill>} />
             <div className="table-wrap">
               <table className="data">
                 <thead><tr><th>Grupo</th><th>Categoría</th><th>Relación</th><th className="num">Influencia</th><th className="num">Exposición</th><th className="num">Vulnerabilidad</th><th>Último contacto</th></tr></thead>
@@ -75,8 +75,8 @@ export default function SocialView({ workspace, actions }: ViewProps) {
                   {stakeholders.map((s) => (
                     <tr key={s.id}>
                       <td><span className="strong">{s.name}</span><div className="sub">{s.location}</div></td>
-                      <td><Pill variant="gray">{s.category}</Pill></td>
-                      <td>{s.relation}</td>
+                      <td><Pill variant="gray">{label(s.category)}</Pill></td>
+                      <td>{label(s.relation)}</td>
                       <td className="num">{s.influence}/5</td>
                       <td className="num">{s.exposure}/5</td>
                       <td className="num"><span style={{ color: s.vulnerability >= 4 ? 'var(--terracotta)' : 'inherit' }}>{s.vulnerability}/5</span></td>
@@ -94,8 +94,8 @@ export default function SocialView({ workspace, actions }: ViewProps) {
             <div className="panel-body" style={{ paddingTop: 8 }}>
               {engagements.map((e) => (
                 <div key={e.id} style={{ padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
-                  <div className="row"><div style={{ fontSize: 10.5, fontWeight: 600, flex: 1 }}>{e.title}</div><Pill variant={e.status === 'Completed' ? 'green' : e.status === 'Ongoing' ? 'amber' : 'gray'}>{e.status}</Pill></div>
-                  <div className="micro" style={{ marginTop: 3 }}>{e.stakeholderName || 'Múltiples grupos'} · {e.type} · {dateLabel(e.date)}</div>
+                  <div className="row"><div style={{ fontSize: 10.5, fontWeight: 600, flex: 1 }}>{e.title}</div><Pill variant={e.status === 'Completed' ? 'green' : e.status === 'Ongoing' ? 'amber' : 'gray'}>{label(e.status)}</Pill></div>
+                  <div className="micro" style={{ marginTop: 3 }}>{e.stakeholderName || 'Múltiples grupos'} · {label(e.type)} · {dateLabel(e.date)}</div>
                   <div className="micro" style={{ marginTop: 3 }}>{e.participants} participantes · {e.commitments}</div>
                 </div>
               ))}
@@ -109,9 +109,9 @@ export default function SocialView({ workspace, actions }: ViewProps) {
             <div className="grid grid-4">
               {[womenKpi, injuryKpi, trainingKpi, communityKpi].filter(Boolean).map((k) => k && (
                 <div key={k.id} className="mini-card">
-                  <div className="label">{k.category}</div>
+                  <div className="label">{label(k.category)}</div>
                   <div style={{ fontSize: 18, fontWeight: 600, marginTop: 3 }}>{fmt(k.value, 1)} <span style={{ fontSize: 9, color: 'var(--muted)' }}>{k.unit}</span></div>
-                  <div className="foot">Objetivo {fmt(k.target, 1)} · {k.status}</div>
+                  <div className="foot">Objetivo {fmt(k.target, 1)} · {label(k.status)}</div>
                   <ProgressRow value={k.progress || 0} tone={k.status === 'On track' ? 'green' : 'amber'} />
                 </div>
               ))}
@@ -123,7 +123,7 @@ export default function SocialView({ workspace, actions }: ViewProps) {
       {tab === 'grievances' && (
         <div className="grid grid-12" style={{ marginTop: 14 }}>
           <Panel className="col-8">
-            <PanelHead title="Mecanismo de reclamos" subtitle="Casos abiertos, severidad, estado y remediación." actions={<Pill variant={criticalGrievances.length ? 'red' : 'green'}>{criticalGrievances.length} críticos</Pill>} />
+            <PanelHead title="Mecanismo de reclamos" subtitle="Casos abiertos, severidad, estado y remediación." actions={<Pill variant={criticalGrievances.length ? 'red' : 'green'}>{countLabel(criticalGrievances.length, 'crítico', 'críticos')}</Pill>} />
             <div className="table-wrap">
               <table className="data">
                 <thead><tr><th>Caso</th><th>Grupo afectado</th><th>Categoría</th><th>Severidad</th><th>Estado</th><th>Remediación</th></tr></thead>
@@ -132,9 +132,9 @@ export default function SocialView({ workspace, actions }: ViewProps) {
                     <tr key={g.id}>
                       <td><span className="strong">{g.id}</span><div className="sub">Abierto {dateLabel(g.opened)}{g.resolved ? ` · Cerrado ${dateLabel(g.resolved)}` : ''}</div></td>
                       <td>{g.stakeholder}</td>
-                      <td>{g.category}<div className="sub">{g.description}</div></td>
-                      <td><Pill variant={g.severity === 'Critical' ? 'red' : g.severity === 'High' ? 'amber' : 'gray'}>{g.severity}</Pill></td>
-                      <td><Pill variant={g.status === 'Resolved' ? 'green' : g.status === 'Escalated' ? 'red' : 'amber'}>{g.status}</Pill></td>
+                      <td>{label(g.category)}<div className="sub">{g.description}</div></td>
+                      <td><Pill variant={g.severity === 'Critical' ? 'red' : g.severity === 'High' ? 'amber' : 'gray'}>{label(g.severity)}</Pill></td>
+                      <td><Pill variant={g.status === 'Resolved' ? 'green' : g.status === 'Escalated' ? 'red' : 'amber'}>{label(g.status)}</Pill></td>
                       <td style={{ maxWidth: 240 }}><span className="sub">{g.remediation}</span></td>
                     </tr>
                   ))}
@@ -161,7 +161,7 @@ export default function SocialView({ workspace, actions }: ViewProps) {
           </Panel>
 
           <Panel className="col-12">
-            <PanelHead title="IRO con dimensión de derechos humanos" subtitle="Impactos que reciben prioridad por severidad, no solo por probabilidad." actions={<Pill variant="red">{rightsIros.length} registros</Pill>} />
+            <PanelHead title="IRO con dimensión de derechos humanos" subtitle="Impactos que reciben prioridad por severidad, no solo por probabilidad." actions={<Pill variant="red">{countLabel(rightsIros.length, 'registro', 'registros')}</Pill>} />
             <div className="table-wrap">
               <table className="data">
                 <thead><tr><th>IRO</th><th>Derecho</th><th>Tipo</th><th>Materialidad</th><th className="num">Impacto</th><th className="num">Financiero</th><th>Ubicación</th><th>Estado</th></tr></thead>
@@ -170,12 +170,12 @@ export default function SocialView({ workspace, actions }: ViewProps) {
                     <tr key={i.id} style={{ cursor: 'pointer' }} onClick={() => actions.openIRO(i)}>
                       <td><span className="strong">{i.title}</span><div className="sub"><span className="mono">{i.code}</span> · {i.topicName}</div></td>
                       <td style={{ maxWidth: 200 }}>{i.rights}</td>
-                      <td><Pill variant={i.type === 'Impact' ? 'red' : i.type === 'Risk' ? 'amber' : 'green'}>{i.type}</Pill></td>
+                      <td><Pill variant={i.type === 'Impact' ? 'red' : i.type === 'Risk' ? 'amber' : 'green'}>{label(i.type)}</Pill></td>
                       <td><MaterialityPill value={i.materiality} /></td>
                       <td className="num">{i.impactScore.toFixed(1)}</td>
                       <td className="num">{i.financialScore.toFixed(1)}</td>
                       <td>{i.location}</td>
-                      <td>{i.critical ? <Pill variant="red">Crítico</Pill> : <Pill variant="gray">{i.status}</Pill>}</td>
+                      <td>{i.critical ? <Pill variant="red">Crítico</Pill> : <Pill variant="gray">{label(i.status)}</Pill>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -195,10 +195,10 @@ export default function SocialView({ workspace, actions }: ViewProps) {
                 <tbody>
                   {suppliers.map((s) => (
                     <tr key={s.id}>
-                      <td><span className="strong">{s.name}</span><div className="sub">{s.status}</div></td>
+                      <td><span className="strong">{s.name}</span><div className="sub">{label(s.status)}</div></td>
                       <td>{s.country}</td>
                       <td>{s.sector}</td>
-                      <td><Pill variant={s.risk === 'Critical' ? 'red' : s.risk === 'High' ? 'amber' : s.risk === 'Low' ? 'green' : 'gray'}>{s.risk}</Pill></td>
+                      <td><Pill variant={s.risk === 'Critical' ? 'red' : s.risk === 'High' ? 'amber' : s.risk === 'Low' ? 'green' : 'gray'}>{label(s.risk)}</Pill></td>
                       <td className="num">{money(s.spend)}</td>
                       <td className="num"><span style={{ color: s.assessment < 60 ? 'var(--terracotta)' : 'inherit' }}>{s.assessment}%</span></td>
                       <td>{s.audit}</td>
@@ -209,7 +209,7 @@ export default function SocialView({ workspace, actions }: ViewProps) {
                 </tbody>
               </table>
             </div>
-            <div className="table-footer"><span>{suppliers.length} proveedores · {suppliers.filter((s) => s.audit !== 'None').length} con auditoría</span><span>Certificaciones: {suppliers.filter((s) => s.certifications && s.certifications !== '—').length} proveedores</span></div>
+            <div className="table-footer"><span>{countLabel(suppliers.length, 'proveedor', 'proveedores')} · {countLabel(suppliers.filter((s) => s.audit !== 'None').length, 'con auditoría', 'con auditoría')}</span><span>Certificaciones: {countLabel(suppliers.filter((s) => s.certifications && s.certifications !== '—').length, 'proveedor', 'proveedores')}</span></div>
           </Panel>
 
           <Panel className="col-4">
@@ -252,7 +252,7 @@ export default function SocialView({ workspace, actions }: ViewProps) {
             <div className="section-head"><div><h3>Políticas y compromisos</h3><p>Instrumentos que sostienen la debida diligencia.</p></div><ShieldCheck size={15} className="muted" /></div>
             {policies.filter((p) => /human|derecho|labour|labor|supplier|proveedor|grievance|reclamo|diversity|diversidad/i.test(p.title)).map((p) => (
               <div key={p.id} style={{ padding: '8px 0', borderBottom: '1px solid var(--line)' }}>
-                <div className="row"><div style={{ fontSize: 10.5, fontWeight: 550, flex: 1 }}>{p.title}</div><Pill variant={p.status === 'Active' ? 'green' : 'amber'}>{p.status}</Pill></div>
+                <div className="row"><div style={{ fontSize: 10.5, fontWeight: 550, flex: 1 }}>{p.title}</div><Pill variant={p.status === 'Active' ? 'green' : 'amber'}>{label(p.status)}</Pill></div>
                 <div className="micro">{p.code} · v{p.version} · {p.owner}</div>
               </div>
             ))}
