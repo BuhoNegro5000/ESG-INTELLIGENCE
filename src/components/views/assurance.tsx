@@ -10,7 +10,7 @@ export default function AssuranceView({ workspace }: ViewProps) {
   const [tab, setTab] = useState('evidence');
   const { evidence, controls, findings, auditLogs, dataQuality, company, reports } = workspace;
   const verified = evidence.filter((e) => e.status === 'Verified');
-  const pending = evidence.filter((e) => e.status === 'Pending' || e.status === 'Expired');
+  const pending = evidence.filter((e) => e.status === 'Submitted' || e.status === 'Expired');
   const operating = controls.filter((c) => c.status === 'Operating');
   const openFindings = findings.filter((f) => f.status !== 'Closed');
   const highFindings = openFindings.filter((f) => f.severity === 'Critical' || f.severity === 'High');
@@ -31,7 +31,7 @@ export default function AssuranceView({ workspace }: ViewProps) {
       </div>
 
       <div className="grid grid-4">
-        <div className="panel stat-card"><div className="stat-label"><FileCheck2 size={11} /> Evidencia verificada</div><div className="stat-value">{verified.length}<small>/{evidence.length}</small></div><div className="stat-foot">{countLabel(pending.length, 'pendiente o vencida', 'pendientes o vencidas')}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><FileCheck2 size={11} /> Evidencia verificada</div><div className="stat-value">{verified.length}<small>/{evidence.length}</small></div><div className="stat-foot">{countLabel(pending.length, 'en revisión o vencida', 'en revisión o vencidas')}</div></div>
         <div className="panel stat-card"><div className="stat-label"><ShieldCheck size={11} /> Controles operativos</div><div className="stat-value">{operating.length}<small>/{controls.length}</small></div><div className="stat-foot">{countLabel(controls.reduce((a, b) => a + (Number(b.deficiencies) || 0), 0), 'deficiencia', 'deficiencias')}</div></div>
         <div className="panel stat-card"><div className="stat-label"><ShieldAlert size={11} /> Hallazgos abiertos</div><div className="stat-value" style={{ color: highFindings.length ? 'var(--terracotta)' : 'var(--text)' }}>{openFindings.length}</div><div className="stat-foot">{countLabel(findings.filter((f) => f.status === 'Overdue').length, 'vencido', 'vencidos')}</div></div>
         <div className="panel stat-card"><div className="stat-label"><Fingerprint size={11} /> Calidad del dato</div><div className="stat-value">{dataQuality.overall}<small>/100</small></div><div className="stat-foot">trazabilidad {dataQuality.traceability}%</div></div>
@@ -69,7 +69,7 @@ export default function AssuranceView({ workspace }: ViewProps) {
                 </tbody>
               </table>
             </div>
-            <div className="table-footer"><span>{verified.length} verificadas · {countLabel(pending.length, 'pendiente o vencida', 'pendientes o vencidas')}</span><span>El hash identifica el archivo, no certifica su contenido.</span></div>
+            <div className="table-footer"><span>{verified.length} verificadas · {countLabel(pending.length, 'en revisión o vencida', 'en revisión o vencidas')}</span><span>El hash identifica el archivo, no certifica su contenido.</span></div>
           </Panel>
           <Panel className="col-4" pad>
             <div className="section-head"><div><h3>Reglas de evidencia</h3><p>Qué hace verificable un dato.</p></div><BadgeCheck size={15} className="muted" /></div>

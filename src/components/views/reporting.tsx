@@ -49,10 +49,10 @@ export default function ReportingView({ workspace, actions }: ViewProps) {
       </div>
 
       <div className="grid grid-4">
-        <div className="panel stat-card"><div className="stat-label"><Layers3 size={11} /> Cobertura promedio</div><div className="stat-value">{company.reportingCoverage}<small>%</small></div><div className="stat-foot">{countLabel(complete.length, 'requisito completo', 'requisitos completos')} de {disclosures.length}</div></div>
+        <div className="panel stat-card"><div className="stat-label"><Layers3 size={11} /> Cobertura media</div><div className="stat-value">{company.reportingCoverage}<small>%</small></div><div className="stat-foot">{countLabel(complete.length, 'requisito completo', 'requisitos completos')} de {disclosures.length} · {Math.round((complete.length / Math.max(1, disclosures.length)) * 100)}%</div></div>
         <div className="panel stat-card"><div className="stat-label"><ScrollText size={11} /> Brechas</div><div className="stat-value" style={{ color: gaps.length ? 'var(--terracotta)' : 'var(--text)' }}>{gaps.length}</div><div className="stat-foot">{countLabel(disclosures.filter((d) => d.status === 'Partial').length, 'parcial', 'parciales')}</div></div>
         <div className="panel stat-card"><div className="stat-label"><BookOpen size={11} /> Marcos activos</div><div className="stat-value">{frameworks.length}</div><div className="stat-foot">{countLabel(requirements.length, 'requisito catalogado', 'requisitos catalogados')}</div></div>
-        <div className="panel stat-card"><div className="stat-label"><FileText size={11} /> Paquetes de reporte</div><div className="stat-value">{reports.length}</div><div className="stat-foot">{countLabel(published.length, 'publicado', 'publicados')} · {avgQuality}% calidad media</div></div>
+        <div className="panel stat-card"><div className="stat-label"><FileText size={11} /> Paquetes de reporte</div><div className="stat-value">{reports.length}</div><div className="stat-foot">{countLabel(published.length, 'publicado', 'publicados')} · {avgQuality}% cobertura media</div></div>
       </div>
 
       <div style={{ marginTop: 14 }}>

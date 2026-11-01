@@ -22,13 +22,19 @@ const STAGES = [
 ];
 
 export default function MaterialityView({ workspace, actions }: ViewProps) {
-  const { assessment, assessments, materialityTopics, materialityDistribution, iros, topics } = workspace;
+  const { assessment, assessments, materialityTopics, iros, topics } = workspace;
   const [tab, setTab] = useState('assessment');
   const [selectedCode, setSelectedCode] = useState<string | null>(materialityTopics[0]?.code || null);
   const [busy, setBusy] = useState(false);
   const selected = materialityTopics.find((t) => t.code === selectedCode) || materialityTopics[0] || null;
   const selectedIros = selected ? iros.filter((i) => i.topicCode === selected.code) : [];
   const material = materialityTopics.filter((t) => t.materiality !== 'not');
+  const topicCounts = {
+    both: materialityTopics.filter((t) => t.materiality === 'both').length,
+    impact: materialityTopics.filter((t) => t.materiality === 'impact').length,
+    financial: materialityTopics.filter((t) => t.materiality === 'financial').length,
+    not: materialityTopics.filter((t) => t.materiality === 'not').length,
+  };
   const critical = iros.filter((i) => i.critical);
   const revealRef = useScrollReveal<HTMLDivElement>([workspace.company.id, tab]);
 
@@ -151,12 +157,12 @@ export default function MaterialityView({ workspace, actions }: ViewProps) {
             <div className="section-head"><div><h3>Distribución de la cartera de asuntos</h3><p>Lectura de los dos ejes sin agregación.</p></div></div>
             <div className="grid grid-4">
               {[
-                ['Doble material', materialityDistribution.both, 'var(--amber)'],
-                ['Material por impacto', materialityDistribution.impact, 'var(--terracotta)'],
-                ['Material financiero', materialityDistribution.financial, 'var(--ocean)'],
-                ['No material', materialityDistribution.not, 'var(--muted)'],
+                ['Doble material', topicCounts.both, 'var(--amber)'],
+                ['Material por impacto', topicCounts.impact, 'var(--terracotta)'],
+                ['Material financiero', topicCounts.financial, 'var(--ocean)'],
+                ['No material', topicCounts.not, 'var(--muted)'],
               ].map(([label, value, color]) => (
-                <div key={String(label)} className="mini-card"><div className="label">{label}</div><div className="value" style={{ color: String(color) }}>{String(value)}</div><div className="foot">{countLabel(Number(value), 'IRO')} en esta categoría</div></div>
+                <div key={String(label)} className="mini-card"><div className="label">{label}</div><div className="value" style={{ color: String(color) }}>{String(value)}</div><div className="foot">{countLabel(Number(value), 'asunto', 'asuntos')} en esta categoría</div></div>
               ))}
             </div>
           </Panel>

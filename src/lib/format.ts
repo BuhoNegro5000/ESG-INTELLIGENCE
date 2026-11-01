@@ -16,7 +16,12 @@ export function money(n: number | null | undefined, currency = 'USD') {
 
 export function dateLabel(value: string | null | undefined) {
   if (!value) return '—';
-  const d = new Date(value);
+  // Date-only values (YYYY-MM-DD) are calendar dates, not instants. Parsing them
+  // as UTC midnight makes them render one day earlier in negative-offset zones.
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const d = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   return new Intl.DateTimeFormat('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }).format(d);
 }
@@ -80,7 +85,7 @@ const LABELS: Record<string, string> = {
   'Under investigation': 'En investigación', 'Remediation in progress': 'Remediación en curso',
   Escalated: 'Escalado', Resolved: 'Resuelto', Suspended: 'Suspendido',
   Conditional: 'Condicional', 'Corrective action': 'Acción correctiva', Active: 'Activo',
-  Effective: 'Efectivo', Deficiency: 'Deficiencia', 'Significant deficiency': 'Deficiencia significativa',
+  Effective: 'Efectivo', 'Effective with observation': 'Efectivo con observación', Deficiency: 'Deficiencia', 'Significant deficiency': 'Deficiencia significativa',
   'Partially effective': 'Parcialmente efectivo', 'Not tested': 'No probado',
   Overdue: 'Vencido', Due: 'Por vencer', 'Review due': 'Revisión pendiente', 'Review overdue': 'Revisión vencida',
   // Severity / exposure

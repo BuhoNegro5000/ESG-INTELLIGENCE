@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { organizations, companies, facilities, assessments, companyNotes } from './data/companies.mjs';
@@ -40,7 +41,9 @@ for (const c of companies) {
     ceo: c.ceo, cs: c.cs, website: c.website, accent: c.accent, data: c.data, report: c.report,
     assurance: c.assurance, e: c.e, s: c.s, g: c.g, climate: c.climate, nature: c.nature,
     financial: c.financial, transition: c.transition, materiality: c.materiality, critical: c.critical,
-    assess: c.assess, progress: c.progress, updated: now,
+    assess: assessmentByCompany.get(c.id)?.status || c.assess,
+    progress: assessmentByCompany.get(c.id) ? Math.round((Math.max(1, Math.min(9, assessmentByCompany.get(c.id).stage)) / 9) * 100) : 0,
+    updated: now,
   });
 }
 
@@ -48,7 +51,11 @@ const insertFacility = db.prepare('INSERT INTO facilities (id,company_id,name,co
 for (const f of facilities) insertFacility.run(f.id, f.company, f.name, f.country, f.region, f.type, f.lat, f.lng, f.employees, f.water, f.protected, f.cert);
 
 const insertAssessment = db.prepare('INSERT INTO assessments (id,company_id,title,period,version,status,stage,scope,methodology,threshold_impact,threshold_financial,created_at,approved_at,progress,owner,reviewer,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-for (const a of assessments) insertAssessment.run(a.id, a.company, a.title, a.period, a.version, a.status, a.stage, a.scope, a.methodology, a.thresholdI, a.thresholdF, a.created, a.approved, a.progress, a.owner, a.reviewer, a.notes);
+for (const a of assessments) {
+  const stage = Math.max(1, Math.min(9, a.stage));
+  const progress = Math.round((stage / 9) * 100);
+  insertAssessment.run(a.id, a.company, a.title, a.period, a.version, a.status, stage, a.scope, a.methodology, a.thresholdI, a.thresholdF, a.created, a.approved, progress, a.owner, a.reviewer, a.notes);
+}
 
 const insertTopic = db.prepare('INSERT INTO topics (code,dimension,name,subtopic,esrs,gri,description) VALUES (?,?,?,?,?,?,?)');
 for (const t of topics) insertTopic.run(...t);
@@ -74,7 +81,10 @@ for (const c of companies) {
     if (!t) throw new Error(`Unknown topic ${i.topic} for ${i.code}`);
     const severity = i.scale && i.scope && i.irremed ? (i.scale + i.scope + i.irremed) / 3 : null;
     const materiality = decide(i.impact, i.financial, assessment?.thresholdI, assessment?.thresholdF);
-    const critical = i.critical || i.impact >= 4.4 || i.financial >= 4.4 ? 1 : 0;
+    // Critical when either axis reaches 4.4, or when a documented human-rights
+    // priority is recorded below the score threshold (explicit critical flag).
+    const rightsPriority = i.critical && i.rights && i.rights !== '—';
+    const critical = i.impact >= 4.4 || i.financial >= 4.4 || rightsPriority ? 1 : 0;
     const status = assessment?.status === 'Approved' ? 'Approved' : assessment?.status === 'In review' ? 'Under review' : 'Evaluated';
     insertIro.run({
       id: i.code, company: c.id, assessment: assessment?.id || null, topic: i.topic, code: i.code,
@@ -133,7 +143,7 @@ const engagementTitles = ['Water stewardship dialogue', 'Materiality validation 
 for (const [ci, c] of companies.entries()) {
   for (let e = 0; e < 3; e++) {
     const s = stakeholderSets[c.id][e];
-    insertEngagement.run(`ENG-${c.id}-${e + 1}`, c.id, s[0], engagementTitles[(ci + e) % engagementTitles.length], engagementTypes[(ci + e) % engagementTypes.length], `2026-0${(e % 8) + 2}-1${e + 1}`, e === 2 ? 'Follow-up required' : 'Completed', 18 + e * 7 + ci, 'Documented in engagement minutes; actions assigned to owner.', `EV-${c.id.toUpperCase().slice(0, 3)}-ENG-${e + 1}`);
+    insertEngagement.run(`ENG-${c.id}-${e + 1}`, c.id, s[0], engagementTitles[(ci + e) % engagementTitles.length], engagementTypes[(ci + e) % engagementTypes.length], `2026-0${(e % 8) + 2}-1${e + 1}`, e === 2 ? 'Follow-up required' : 'Completed', 18 + e * 7 + ci, 'Documented in engagement minutes; actions assigned to owner.', `EV-${c.id.toUpperCase().slice(0, 3)}-${String((e % 8) + 1).padStart(3, '0')}`);
   }
 }
 
@@ -182,13 +192,26 @@ const insertSupplier = db.prepare('INSERT INTO suppliers (id,company_id,name,cou
 for (const c of companies) for (const s of supplierSets[c.id]) insertSupplier.run(s[0], c.id, ...s.slice(1));
 
 const insertTarget = db.prepare('INSERT INTO targets (id,company_id,title,topic,baseline,target,current,unit,deadline,progress,status,owner) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)');
-for (const c of companies) for (const t of targets[c.id]) insertTarget.run(t[0], c.id, ...t.slice(1));
+const targetProgress = (baseline, target, current) => {
+  if (target === baseline) return current === target ? 100 : 0;
+  const raw = target < baseline
+    ? ((baseline - current) / (baseline - target)) * 100
+    : ((current - baseline) / (target - baseline)) * 100;
+  return Math.max(0, Math.min(100, Math.round(raw)));
+};
+for (const c of companies) {
+  for (const t of targets[c.id]) {
+    const row = [...t];
+    row[8] = targetProgress(Number(t[3]), Number(t[4]), Number(t[5]));
+    insertTarget.run(row[0], c.id, ...row.slice(1));
+  }
+}
 
 const insertPolicy = db.prepare('INSERT INTO policies (id,company_id,code,title,version,owner,approved,effective,review,status,scope) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
 for (const c of companies) {
   for (const p of policyTemplates) {
-    const status = c.id === 'bosque-azul' && p[0] === 'POL-04' ? 'Review overdue' : p[8];
-    insertPolicy.run(`PLC-${c.id}-${p[0]}`, c.id, p[0], p[1], p[2], p[3], p[4], p[5], p[6], status, p[9]);
+    const status = c.id === 'bosque-azul' && p[0] === 'POL-04' ? 'Review overdue' : p[7];
+    insertPolicy.run(`PLC-${c.id}-${p[0]}`, c.id, p[0], p[1], p[2], p[3], p[4], p[5], p[6], status, p[8]);
   }
 }
 
@@ -208,7 +231,8 @@ for (const [ci, c] of companies.entries()) {
     if (c.id === 'financia-andina') cov += 4;
     cov = Math.max(8, Math.min(100, cov));
     const status = cov >= 85 ? 'Complete' : cov >= 60 ? 'Partial' : cov >= 35 ? 'Gap' : 'Not started';
-    insertDisclosure.run(`DSC-${c.id}-${ri + 1}`, c.id, framework, version, code, title, status, cov, ownerByFramework[framework] || 'Sustainability', `EV-${c.id.toUpperCase().slice(0, 3)}-DSC-${ri + 1}`, `${Math.round(cov / 10)} of 10 datapoints evidenced`, now);
+        const evidenceId = `EV-${c.id.toUpperCase().slice(0, 3)}-${String((ri % 8) + 1).padStart(3, '0')}`;
+    insertDisclosure.run(`DSC-${c.id}-${ri + 1}`, c.id, framework, version, code, title, status, cov, ownerByFramework[framework] || 'Sustainability', evidenceId, `${Math.round(cov / 10)} of 10 datapoints evidenced`, now);
   }
 }
 
@@ -218,7 +242,8 @@ for (const [ci, c] of companies.entries()) {
     let status = r[4];
     if (c.report === 'Draft' && ri < 2) status = 'Draft';
     if (c.report === 'In review' && ri === 0) status = 'In review';
-    if (c.report === 'Published' && ri === 0) status = 'Published';
+    if (c.report === 'Published' && ri === 0 && r[3] !== 'FY2026') status = 'Published';
+    if (r[3] === 'FY2026' && status === 'Published') status = 'In review';
     const cov = Math.max(20, Math.min(98, c.data - 8 + ri * 3 + ci));
     insertReport.run(`RPT-${c.id}-${ri + 1}`, c.id, `${r[0]} — ${c.short}`, r[1], r[2], r[3], status, cov, `2026-${String(8 + ri).padStart(2, '0')}-15`, r[6]);
   }
@@ -247,7 +272,7 @@ const controlTemplates = [
 ];
 for (const c of companies) {
   for (const [idx, t] of controlTemplates.entries()) {
-    let result = t[7], def = t[8], status = t[9];
+    let result = t[6], def = t[7], status = t[8];
     if (c.id === 'textiles-sur' && idx === 2) { result = 'Significant deficiency'; def = 5; status = 'Failed'; }
     if (c.id === 'bosque-azul' && idx === 0) { result = 'Deficiency'; def = 2; status = 'Needs remediation'; }
     if (c.id === 'pacific-logistics' && idx === 1) { result = 'Effective'; def = 0; }
@@ -342,12 +367,40 @@ const actions = [
   ['UPDATED', 'KPI', 'Value corrected after evidence review'],
   ['REVIEWED', 'Control', 'Control test evidence reviewed'],
 ];
+const logHash = (parts) => 'sha256:' + crypto.createHash('sha256').update(parts.join('|')).digest('hex');
+const code3 = (c) => c.id.toUpperCase().slice(0, 3);
 for (const [ci, c] of companies.entries()) {
+  const assessment = assessmentByCompany.get(c.id);
+  const iroCodes = (allIros[c.id] || []).map((i) => i.code);
+  const kpiCodes = (kpis[c.id] || []).map((k) => k[0]);
+  const evIds = Array.from({ length: 8 }, (_, e) => `EV-${code3(c)}-${String(e + 1).padStart(3, '0')}`);
+  const repIds = reportTemplates.map((_, ri) => `RPT-${c.id}-${ri + 1}`);
+  const ctrlIds = controlTemplates.map((_, i) => `CT-${c.id}-${i + 1}`);
+  const dscIds = frameworkRequirements.map((_, ri) => `DSC-${c.id}-${ri + 1}`);
+  const stkIds = (stakeholderSets[c.id] || []).map((s) => s[0]);
   for (let l = 0; l < 10; l++) {
     const a = actors[(ci + l) % actors.length];
     const act = actions[(ci * 2 + l) % actions.length];
     const timestamp = new Date(Date.UTC(2026, 9, 30 - l, 9 + (l % 6), 12 + l, 0)).toISOString();
-    insertLog.run(c.id, a[0], a[1], act[0], act[1], `${act[1]}-${c.id}-${l + 1}`, act[2], timestamp, `sha256:${(c.id + l + act[0]).padEnd(16, '0').slice(0, 16)}${'e5f6a7b8'.repeat(4)}`);
+    let action = act[0];
+    let entityId;
+    switch (act[1]) {
+      case 'Assessment':
+        entityId = assessment.id;
+        if (action === 'APPROVED' && assessment.status !== 'Approved') action = 'REVIEWED';
+        break;
+      case 'IRO': entityId = iroCodes[l % iroCodes.length]; break;
+      case 'KPI': entityId = kpiCodes[l % kpiCodes.length]; break;
+      case 'Evidence': entityId = evIds[l % evIds.length]; break;
+      case 'Report': entityId = repIds[l % repIds.length]; break;
+      case 'Control': entityId = ctrlIds[l % ctrlIds.length]; break;
+      case 'Disclosure': entityId = dscIds[l % dscIds.length]; break;
+      case 'Stakeholder': entityId = stkIds[l % stkIds.length]; break;
+      default: entityId = `${act[1]}-${c.id}-${l + 1}`;
+    }
+    const detail = act[2];
+    const hash = logHash([c.id, a[0], a[1], action, act[1], entityId, detail, timestamp, String(ci), String(l)]);
+    insertLog.run(c.id, a[0], a[1], action, act[1], entityId, detail, timestamp, hash);
   }
 }
 
@@ -356,7 +409,9 @@ for (const c of companies) {
   const critCount = db.prepare('SELECT COUNT(*) AS n FROM iros WHERE company_id = ? AND critical = 1').get(c.id).n;
   const coverage = db.prepare("SELECT ROUND(AVG(coverage)) AS n FROM disclosures WHERE company_id = ?").get(c.id).n;
   const targetProgress = db.prepare('SELECT ROUND(AVG(progress)) AS n FROM targets WHERE company_id = ?').get(c.id).n;
-  db.prepare('UPDATE companies SET materiality_count=?, critical_iros=?, reporting_coverage=?, target_progress=? WHERE id=?').run(matCount, critCount, coverage, targetProgress, c.id);
+  const assessment = assessmentByCompany.get(c.id);
+  const assessmentProgress = assessment ? Math.round((Math.max(1, Math.min(9, assessment.stage)) / 9) * 100) : 0;
+  db.prepare('UPDATE companies SET materiality_count=?, critical_iros=?, reporting_coverage=?, target_progress=?, assessment_progress=?, assessment_status=? WHERE id=?').run(matCount, critCount, coverage, targetProgress, assessmentProgress, assessment?.status || c.assess, c.id);
 }
 
 const counts = {
