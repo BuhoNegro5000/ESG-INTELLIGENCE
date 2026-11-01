@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.db binary
+*.sqlite binary
+*.db-wal binary
+*.db-shm binary
+
+package-lock.json linguist-generated=true

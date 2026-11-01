@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+dist/
+next-env.d.ts
+
+# TypeScript
+*.tsbuildinfo
+
+# Vercel
+.vercel/
+
+# Environment
+.env
+.env*.local
+.env.production
+
+# SQLite runtime files (the seeded database itself is versioned)
+data/*.db-wal
+data/*.db-shm
+data/*.db-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
